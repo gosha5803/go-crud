@@ -27,26 +27,32 @@ type Done struct {
 }
 
 type MockProvider struct {
-	client string
+	client   string
+	filePath string
 }
 
-func NewMockProvider() (*MockProvider, error) {
-	return &MockProvider{}, nil
+func NewMockProvider(filePath string) (*MockProvider, error) {
+	return &MockProvider{filePath: filePath}, nil
 }
 
 func (p *MockProvider) StreamResponse(context.Context, AiModelRequest) iter.Seq2[*AiModelResponse, error] {
 	// TODO можно использовать для тестов
-	file, err := os.ReadFile("./mock.json")
+	file, err := os.ReadFile(p.filePath)
 
 	if err != nil {
-		fmt.Println("Error while reading JSON")
-		panic(err)
+		return func(yield func(*AiModelResponse, error) bool) {
+			yield(&AiModelResponse{}, fmt.Errorf("mock provider: stream response: %w", ErrReadingJSONFile))
+			return
+		}
 	}
 
 	var s Stream
 
 	if err := json.Unmarshal(file, &s); err != nil {
-		panic(err)
+		return func(yield func(*AiModelResponse, error) bool) {
+			yield(&AiModelResponse{}, fmt.Errorf("mock provider: stream response: %w", ErrParsingJSON))
+			return
+		}
 	}
 
 	return func(yield func(*AiModelResponse, error) bool) {

@@ -1,17 +1,21 @@
 package posts
 
 import (
+	"errors"
+	"log"
+	"net/http"
+
 	"github.com/gin-gonic/gin"
 	"github.com/gosha5803/go-crud/models"
 )
 
 // Go-сообщество склоняется к тому, что интерфейс должен объявляться там, где он потребляется, а не там, где реализуется.
 type IPostService interface {
-	CreatePost(post CreatePostDto) models.Post
-	GetPosts() []models.Post
-	GetPostById(id string) models.Post
-	UpdatePost(id string, post CreatePostDto) models.Post
-	DeletePost(id string) bool
+	CreatePost(post CreatePostDto) (models.Post, error)
+	GetPosts() ([]models.Post, error)
+	GetPostById(id string) (models.Post, error)
+	UpdatePost(id string, post CreatePostDto) (models.Post, error)
+	DeletePost(id string) (bool, error)
 }
 
 type PostController struct {
@@ -42,7 +46,16 @@ func (controller *PostController) AssignRoutes() {
 }
 
 func (controller *PostController) getPosts(c *gin.Context) {
-	posts := controller.postService.GetPosts()
+	posts, err := controller.postService.GetPosts()
+
+	if err != nil {
+		log.Printf("controller: getPosts: %v", err)
+
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error": "internal server error",
+		})
+		return
+	}
 
 	c.JSON(200, gin.H{
 		"posts": posts,
@@ -52,7 +65,21 @@ func (controller *PostController) getPosts(c *gin.Context) {
 func (controller *PostController) getPostById(c *gin.Context) {
 	id := c.Param("id")
 
-	post := controller.postService.GetPostById(id)
+	post, err := controller.postService.GetPostById(id)
+
+	if err != nil {
+		log.Printf("controller: get post by id: %v", err)
+
+		if errors.Is(err, ErrPostNotFound) {
+			c.JSON(http.StatusNotFound, gin.H{"error": "post not found"})
+			return
+		}
+
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error": "internal server error",
+		})
+		return
+	}
 
 	c.JSON(200, gin.H{
 		"post": post,
@@ -62,9 +89,22 @@ func (controller *PostController) getPostById(c *gin.Context) {
 func (controller *PostController) createPost(c *gin.Context) {
 	var body CreatePostDto
 
-	c.Bind(&body)
+	// c.Bind` сам пишет 400 и игнорирует ошибку в твоём коде
+	if err := c.ShouldBindJSON(&body); err != nil {
+		log.Printf("controller: create post: %v", err)
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid request body"})
+		return
+	}
 
-	post := controller.postService.CreatePost(body)
+	post, err := controller.postService.CreatePost(body)
+
+	if err != nil {
+		log.Printf("controller: create post: %v", err)
+
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error": "internal server error",
+		})
+	}
 
 	c.JSON(201, gin.H{
 		"post": post,
@@ -80,7 +120,21 @@ func (controller *PostController) updatePost(c *gin.Context) {
 	// Get body from req
 	c.Bind(&body)
 
-	post := controller.postService.UpdatePost(id, body)
+	post, err := controller.postService.UpdatePost(id, body)
+
+	if err != nil {
+		log.Printf("controller: update post: %v", err)
+
+		if errors.Is(err, ErrPostNotFound) {
+			c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+			return
+		}
+
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error": "internal server error",
+		})
+		return
+	}
 
 	c.JSON(200, gin.H{
 		"post": post,
@@ -91,7 +145,21 @@ func (controller *PostController) deletePost(c *gin.Context) {
 	// Get id from URL
 	id := c.Param("id")
 
-	success := controller.postService.DeletePost(id)
+	success, err := controller.postService.DeletePost(id)
+
+	if err != nil {
+		log.Printf("controller: delete post: %v", err)
+
+		if errors.Is(err, ErrCouldNotDeletePost) {
+			c.JSON(http.StatusConflict, gin.H{"error": err.Error()})
+			return
+		}
+
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error": "internal server error",
+		})
+		return
+	}
 
 	c.JSON(200, gin.H{
 		"Success": success,

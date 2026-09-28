@@ -22,7 +22,7 @@ func NewAiProvider(ctx context.Context, cfg ProviderConfig) (IAiModelProvider, e
 	case ProviderGemini:
 		return NewGeminiProvider(ctx, cfg.APIKey)
 	case ProviderMock:
-		return NewMockProvider()
+		return NewMockProvider("./mock.json")
 	default:
 		return nil, fmt.Errorf("unknown provider: %s", cfg.Kind)
 	}

@@ -20,7 +20,7 @@ type AiChatModule struct {
 	controller IAiChatController
 }
 
-func NewAiChatModule(ctx context.Context, engine *gin.Engine) *AiChatModule {
+func NewAiChatModule(ctx context.Context, engine *gin.Engine) (*AiChatModule, error) {
 	// TODO тут нужен конфиг сервис
 	apiKey := os.Getenv("GEMINI_API_KEY")
 
@@ -28,14 +28,13 @@ func NewAiChatModule(ctx context.Context, engine *gin.Engine) *AiChatModule {
 	aiClient, err := NewAiProvider(ctx, ProviderConfig{Kind: ProviderGemini, APIKey: apiKey})
 
 	if err != nil {
-		fmt.Printf("Error %s", err)
-		return nil
+		return nil, fmt.Errorf("new ai chat module: %w", err)
 	}
 
 	service := NewAiChatService(aiClient, 6, 25*time.Millisecond)
 	controller := NewAiChatController(service, engine)
 
-	return &AiChatModule{controller: controller}
+	return &AiChatModule{controller: controller}, nil
 
 }
 

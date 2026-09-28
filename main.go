@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"log"
 
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
@@ -31,7 +32,14 @@ func main() {
 
 	ctx := context.Background()
 
-	runModules([]models.Module{posts.NewPostModule(r, initializers.DB), aichat.NewAiChatModule(ctx, r)})
+	aiChatModule, err := aichat.NewAiChatModule(ctx, r)
+
+	if err != nil {
+		log.Printf("main: %v", err)
+		return
+	}
+
+	runModules([]models.Module{posts.NewPostModule(r, initializers.DB), aiChatModule})
 
 	r.Run()
 

@@ -1,6 +1,8 @@
 package posts
 
 import (
+	"errors"
+
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
 )
@@ -22,6 +24,9 @@ type IPostController interface {
 	createPost(c *gin.Context)
 	updatePost(c *gin.Context)
 }
+
+var ErrPostNotFound = errors.New("post not found")
+var ErrCouldNotDeletePost = errors.New("could not delete post")
 
 // По NEST у нас должен быть сервис и контроллер
 // В конструктор контроллера внедряется сервис

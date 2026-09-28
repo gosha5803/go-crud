@@ -2,6 +2,7 @@ package posts
 
 import (
 	"errors"
+	"fmt"
 
 	"github.com/gosha5803/go-crud/models"
 	"gorm.io/gorm"
@@ -14,7 +15,7 @@ func NewPostService(db *gorm.DB) *PostService {
 // TODO реализовать методы
 // Инстанциировать классы в модуле что ли)
 
-func (service *PostService) CreatePost(postDTO CreatePostDto) models.Post {
+func (service *PostService) CreatePost(postDTO CreatePostDto) (models.Post, error) {
 	newPost := models.Post{
 		Title: postDTO.Title,
 		Body:  postDTO.Body,
@@ -23,44 +24,81 @@ func (service *PostService) CreatePost(postDTO CreatePostDto) models.Post {
 	result := service.DB.Create(&newPost)
 
 	if result.Error != nil {
-		errors.New("Error while creating a post")
+		err := fmt.Errorf("service: createPost: %w", result.Error)
+		return models.Post{}, err
 	}
 
-	return newPost
+	return newPost, nil
 }
 
-func (service *PostService) GetPosts() []models.Post {
+func (service *PostService) GetPosts() ([]models.Post, error) {
 	var posts []models.Post
 
 	// Мутация и назначение через указатель
-	service.DB.Find(&posts)
+	if result := service.DB.Find(&posts); result.Error != nil {
+		err := fmt.Errorf("service: getPosts: %w", result.Error)
 
-	return posts
+		return []models.Post{}, err
+	}
+
+	return posts, nil
 }
 
-func (service *PostService) GetPostById(id string) models.Post {
+func (service *PostService) GetPostById(id string) (models.Post, error) {
 	var post models.Post
 
-	service.DB.First(&post, id)
+	result := service.DB.First(&post, "id = ?", id)
 
-	return post
+	if result.Error != nil {
+		// Неужели я только благодоря своей сентинел ошибке могу идентифицировать ошибку, когда пост не найден?
+		// В простом формате без парсинга строк как будто да
+		if errors.Is(result.Error, gorm.ErrRecordNotFound) {
+			return models.Post{}, fmt.Errorf("get post %s: %w", id, ErrPostNotFound)
+		}
+
+		return models.Post{}, fmt.Errorf("get post: unexpected error")
+	}
+
+	return post, nil
 }
 
-func (service *PostService) UpdatePost(id string, post CreatePostDto) models.Post {
+func (service *PostService) UpdatePost(id string, post CreatePostDto) (models.Post, error) {
 	var existing models.Post
 	// Get post to update
-	service.DB.First(&existing, id)
+	result := service.DB.First(&existing, id)
 
-	service.DB.Model(&existing).Updates(models.Post{
+	if result.Error != nil {
+		if errors.Is(result.Error, gorm.ErrRecordNotFound) {
+			return models.Post{}, fmt.Errorf("update post %s: %w", id, ErrPostNotFound)
+		}
+
+		return models.Post{}, fmt.Errorf("update post: unexpected error")
+	}
+
+	updateResult := service.DB.Model(&existing).Updates(models.Post{
 		Title: post.Title,
 		Body:  post.Body,
 	})
 
-	return existing
+	if updateResult.Error != nil {
+		return models.Post{}, fmt.Errorf("update post: unexpected error")
+	}
+
+	return existing, nil
 }
 
-func (service *PostService) DeletePost(id string) bool {
-	service.DB.Delete(&models.Post{}, id)
+func (service *PostService) DeletePost(id string) (bool, error) {
+	result := service.DB.Delete(&models.Post{}, id)
 
-	return true
+	if result.Error != nil {
+		err := fmt.Errorf("delete post %s: %w", id, result.Error)
+		return false, err
+	}
+
+	if result.RowsAffected != 1 {
+		err := fmt.Errorf("delete post %s: %w", id, ErrCouldNotDeletePost)
+		return false, err
+	}
+
+	return true, nil
 }

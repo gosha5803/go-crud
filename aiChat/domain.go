@@ -1,5 +1,7 @@
 package aichat
 
+import "errors"
+
 type AiModelResponse struct {
 	Text      string
 	IsFinal   bool
@@ -28,3 +30,7 @@ type AiErrorDTO struct {
 type AiDoneDTO struct {
 	Reason string `json:"reason,omitempty"`
 }
+
+// Излишне
+var ErrParsingJSON = errors.New("error while parsing json")
+var ErrReadingJSONFile = errors.New("error while reading json file")

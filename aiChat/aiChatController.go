@@ -3,6 +3,7 @@ package aichat
 import (
 	"context"
 	"iter"
+	"log"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -45,6 +46,9 @@ func (controller *ChatController) askModel(c *gin.Context) {
 
 	for resp, err := range stream {
 		if err != nil {
+			log.Printf("controller: createPost: %v", err)
+
+			// TODO унифицировать тип дтошки ошибки
 			c.SSEvent("error", gin.H{"error": err.Error()})
 			flusher.Flush()
 			return
