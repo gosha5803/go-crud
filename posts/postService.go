@@ -56,23 +56,23 @@ func (service *PostService) GetPostById(id string) (models.Post, error) {
 			return models.Post{}, fmt.Errorf("get post %s: %w", id, ErrPostNotFound)
 		}
 
-		return models.Post{}, fmt.Errorf("get post: unexpected error")
+		return models.Post{}, fmt.Errorf("get post: %s. %w", id, result.Error)
 	}
 
 	return post, nil
 }
 
-func (service *PostService) UpdatePost(id string, post CreatePostDto) (models.Post, error) {
+func (service *PostService) UpdatePost(id string, post UpdatePostDto) (models.Post, error) {
 	var existing models.Post
 	// Get post to update
-	result := service.DB.First(&existing, id)
+	result := service.DB.First(&existing, "id = ?", id)
 
 	if result.Error != nil {
 		if errors.Is(result.Error, gorm.ErrRecordNotFound) {
 			return models.Post{}, fmt.Errorf("update post %s: %w", id, ErrPostNotFound)
 		}
 
-		return models.Post{}, fmt.Errorf("update post: unexpected error")
+		return models.Post{}, fmt.Errorf("update post: %s, %w", id, result.Error)
 	}
 
 	updateResult := service.DB.Model(&existing).Updates(models.Post{
@@ -81,14 +81,14 @@ func (service *PostService) UpdatePost(id string, post CreatePostDto) (models.Po
 	})
 
 	if updateResult.Error != nil {
-		return models.Post{}, fmt.Errorf("update post: unexpected error")
+		return models.Post{}, fmt.Errorf("update post: %s, %w", id, result.Error)
 	}
 
 	return existing, nil
 }
 
 func (service *PostService) DeletePost(id string) (bool, error) {
-	result := service.DB.Delete(&models.Post{}, id)
+	result := service.DB.Delete(&models.Post{}, "id = ?", id)
 
 	if result.Error != nil {
 		err := fmt.Errorf("delete post %s: %w", id, result.Error)
@@ -96,7 +96,7 @@ func (service *PostService) DeletePost(id string) (bool, error) {
 	}
 
 	if result.RowsAffected != 1 {
-		err := fmt.Errorf("delete post %s: %w", id, ErrCouldNotDeletePost)
+		err := fmt.Errorf("delete post %s: %w", id, ErrPostNotFound)
 		return false, err
 	}
 

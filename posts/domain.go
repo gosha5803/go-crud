@@ -3,13 +3,17 @@ package posts
 import (
 	"errors"
 
-	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
 )
 
 type CreatePostDto struct {
-	Title string
-	Body  string
+	Title string `json:"title" binding:"required,min=3,max=255"`
+	Body  string `json:"body" binding:"required,min=1,max=10000"`
+}
+
+type UpdatePostDto struct {
+	Title string `json:"title" binding:"min=3,max=255"`
+	Body  string `json:"body" binding:"min=1,max=10000"`
 }
 
 type PostService struct {
@@ -18,11 +22,6 @@ type PostService struct {
 
 type IPostController interface {
 	AssignRoutes()
-	getPosts(c *gin.Context)
-	getPostById(c *gin.Context)
-	deletePost(c *gin.Context)
-	createPost(c *gin.Context)
-	updatePost(c *gin.Context)
 }
 
 var ErrPostNotFound = errors.New("post not found")

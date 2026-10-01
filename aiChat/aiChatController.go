@@ -7,6 +7,7 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
+	"github.com/gosha5803/go-crud/initializers"
 )
 
 type IAiChatService interface {
@@ -25,8 +26,9 @@ func NewAiChatController(service IAiChatService, g *gin.Engine) *ChatController 
 func (controller *ChatController) askModel(c *gin.Context) {
 	var dto AiModelRequest
 
-	if err := c.Bind(&dto); err != nil {
-		c.JSON(400, gin.H{"error": err.Error()})
+	if err := c.ShouldBindJSON(&dto); err != nil {
+		formattedError := initializers.FormatValidationErrors(err)
+		c.JSON(400, gin.H{"error": formattedError})
 		return
 	}
 

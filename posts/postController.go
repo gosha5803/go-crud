@@ -6,16 +6,17 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
+	"github.com/gosha5803/go-crud/initializers"
 	"github.com/gosha5803/go-crud/models"
 )
 
 // Go-сообщество склоняется к тому, что интерфейс должен объявляться там, где он потребляется, а не там, где реализуется.
 type IPostService interface {
-	CreatePost(post CreatePostDto) (models.Post, error)
+	CreatePost(CreatePostDto) (models.Post, error)
 	GetPosts() ([]models.Post, error)
-	GetPostById(id string) (models.Post, error)
-	UpdatePost(id string, post CreatePostDto) (models.Post, error)
-	DeletePost(id string) (bool, error)
+	GetPostById(string) (models.Post, error)
+	UpdatePost(string, UpdatePostDto) (models.Post, error)
+	DeletePost(string) (bool, error)
 }
 
 type PostController struct {
@@ -90,9 +91,15 @@ func (controller *PostController) createPost(c *gin.Context) {
 	var body CreatePostDto
 
 	// c.Bind` сам пишет 400 и игнорирует ошибку в твоём коде
+	// c.ShouldBindJSON - тут отлавливается связь с required gin
+	// Понять как он работает и все дела.
 	if err := c.ShouldBindJSON(&body); err != nil {
+
 		log.Printf("controller: create post: %v", err)
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid request body"})
+
+		parsedErrors := initializers.FormatValidationErrors(err)
+		c.JSON(http.StatusBadRequest, gin.H{"errors": parsedErrors})
+
 		return
 	}
 
@@ -104,6 +111,7 @@ func (controller *PostController) createPost(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"error": "internal server error",
 		})
+		return
 	}
 
 	c.JSON(201, gin.H{
@@ -115,10 +123,10 @@ func (controller *PostController) updatePost(c *gin.Context) {
 	// Get id from URL
 	id := c.Param("id")
 
-	var body CreatePostDto
+	var body UpdatePostDto
 
 	// Get body from req
-	c.Bind(&body)
+	c.ShouldBindJSON(&body)
 
 	post, err := controller.postService.UpdatePost(id, body)
 
@@ -150,7 +158,7 @@ func (controller *PostController) deletePost(c *gin.Context) {
 	if err != nil {
 		log.Printf("controller: delete post: %v", err)
 
-		if errors.Is(err, ErrCouldNotDeletePost) {
+		if errors.Is(err, ErrPostNotFound) {
 			c.JSON(http.StatusConflict, gin.H{"error": err.Error()})
 			return
 		}
