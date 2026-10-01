@@ -39,7 +39,7 @@ func (controller *PostController) AssignRoutes() {
 		// В nest удобно было задавать контроллеры и группы методов их,
 		// как тут использовать общий префикс - не понятно
 		post.POST("", controller.createPost)
-		post.GET("/:id", controller.getPostById)
+		post.GET("/:id", controller.GetPostByID)
 		post.PATCH("/:id", controller.updatePost)
 		post.DELETE("/:id", controller.deletePost)
 		// controller.g.POST("/chat", controller.ChatHandler)
@@ -50,11 +50,7 @@ func (controller *PostController) getPosts(c *gin.Context) {
 	posts, err := controller.postService.GetPosts()
 
 	if err != nil {
-		log.Printf("controller: getPosts: %v", err)
-
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"error": "internal server error",
-		})
+		respondServiceError(c, "getPosts", err)
 		return
 	}
 
@@ -63,29 +59,18 @@ func (controller *PostController) getPosts(c *gin.Context) {
 	})
 }
 
-func (controller *PostController) getPostById(c *gin.Context) {
+func (controller *PostController) GetPostByID(c *gin.Context) {
 	var req PostIdPathParam
 
 	if err := c.ShouldBindUri(&req); err != nil {
-		// Расширить и применить форматер ошибок
-		// TODO не стоит ли одинаковую логику обработки ошибок вынести?
-		c.JSON(400, gin.H{"errors": []initializers.ClientError{{Message: "id поста должен быть положительным числом"}}})
+		respondInvalidID(c, "getPostById", err)
 		return
 	}
 
 	post, err := controller.postService.GetPostById(req.ID)
 
 	if err != nil {
-		log.Printf("controller: get post by id: %v", err)
-
-		if errors.Is(err, ErrPostNotFound) {
-			c.JSON(http.StatusNotFound, gin.H{"error": "post not found"})
-			return
-		}
-
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"error": "internal server error",
-		})
+		respondServiceError(c, "getPostById", err)
 		return
 	}
 
@@ -101,23 +86,14 @@ func (controller *PostController) createPost(c *gin.Context) {
 	// c.ShouldBindJSON - тут отлавливается связь с required gin
 	// Понять как он работает и все дела.
 	if err := c.ShouldBindJSON(&body); err != nil {
-
-		log.Printf("controller: create post: %v", err)
-
-		parsedErrors := initializers.FormatValidationErrors(err)
-		c.JSON(http.StatusBadRequest, gin.H{"errors": parsedErrors})
-
+		respondValidationError(c, "createPost", err)
 		return
 	}
 
 	post, err := controller.postService.CreatePost(body)
 
 	if err != nil {
-		log.Printf("controller: create post: %v", err)
-
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"error": "internal server error",
-		})
+		respondServiceError(c, "createPost", err)
 		return
 	}
 
@@ -131,8 +107,7 @@ func (controller *PostController) updatePost(c *gin.Context) {
 	var req PostIdPathParam
 	// ShouldBindUri делает и биндинг, и конвертацию в int, и валидацию.
 	if err := c.ShouldBindUri(&req); err != nil {
-		// Расширить и применить форматер ошибок
-		c.JSON(400, gin.H{"errors": []initializers.ClientError{{Message: "id поста должен быть положительным числом"}}})
+		respondInvalidID(c, "updatePost", err)
 		return
 	}
 
@@ -140,26 +115,14 @@ func (controller *PostController) updatePost(c *gin.Context) {
 
 	// Get body from req
 	if err := c.ShouldBindJSON(&body); err != nil {
-		formatedErrors := initializers.FormatValidationErrors(err)
-		c.JSON(http.StatusBadRequest, gin.H{
-			"errors": formatedErrors,
-		})
+		respondValidationError(c, "updatePost", err)
 		return
 	}
 
 	post, err := controller.postService.UpdatePost(req.ID, body)
 
 	if err != nil {
-		log.Printf("controller: update post: %v", err)
-
-		if errors.Is(err, ErrPostNotFound) {
-			c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
-			return
-		}
-
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"error": "internal server error",
-		})
+		respondServiceError(c, "updatePost", err)
 		return
 	}
 
@@ -173,28 +136,50 @@ func (controller *PostController) deletePost(c *gin.Context) {
 	var req PostIdPathParam
 
 	if err := c.ShouldBindUri(&req); err != nil {
-		// Расширить и применить форматер ошибок
-		c.JSON(400, gin.H{"errors": []initializers.ClientError{{Message: "id поста должен быть положительным числом"}}})
+		respondInvalidID(c, "deletePost", err)
 		return
 	}
 
 	success, err := controller.postService.DeletePost(req.ID)
 
 	if err != nil {
-		log.Printf("controller: delete post: %v", err)
-
-		if errors.Is(err, ErrPostNotFound) {
-			c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
-			return
-		}
-
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"error": "internal server error",
-		})
+		respondServiceError(c, "deletePost", err)
 		return
 	}
 
 	c.JSON(200, gin.H{
-		"Success": success,
+		"success": success,
+	})
+}
+
+func respondInvalidID(ctx *gin.Context, op string, err error) {
+	log.Printf("controller: %s, %v", op, err)
+
+	ctx.JSON(http.StatusBadRequest, gin.H{"errors": []initializers.ClientError{{
+		Message: "id поста должен быть положительным числом",
+	}}})
+}
+
+func respondValidationError(ctx *gin.Context, op string, err error) {
+	log.Printf("controller: %s, %v", op, err)
+
+	ctx.JSON(http.StatusBadRequest, gin.H{
+		"errors": initializers.FormatValidationErrors(err),
+	})
+}
+
+func respondServiceError(ctx *gin.Context, op string, err error) {
+	log.Printf("controller: %s, %v", op, err)
+
+	if errors.Is(err, ErrPostNotFound) {
+		ctx.JSON(http.StatusNotFound, gin.H{
+			"error": "Пост не найден",
+		})
+
+		return
+	}
+
+	ctx.JSON(http.StatusInternalServerError, gin.H{
+		"error": "Непредвиденная ошибка, попробуйте позже",
 	})
 }

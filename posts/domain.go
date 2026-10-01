@@ -32,7 +32,8 @@ type IPostController interface {
 	AssignRoutes()
 }
 
-var ErrPostNotFound = errors.New("Не удалось найти пост")
+// Используется только для внутренней логики, не отдаётся пользаку
+var ErrPostNotFound = errors.New("post not found")
 
 // По NEST у нас должен быть сервис и контроллер
 // В конструктор контроллера внедряется сервис

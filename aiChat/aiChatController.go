@@ -48,10 +48,10 @@ func (controller *ChatController) askModel(c *gin.Context) {
 
 	for resp, err := range stream {
 		if err != nil {
-			log.Printf("controller: createPost: %v", err)
+			log.Printf("controller: askModel: %v", err)
 
 			// TODO унифицировать тип дтошки ошибки
-			c.SSEvent("error", gin.H{"error": err.Error()})
+			c.SSEvent("error", AiErrorDTO{Message: "Не удалось получит ответ модели"})
 			flusher.Flush()
 			return
 		}
