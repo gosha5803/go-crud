@@ -44,7 +44,7 @@ func (service *PostService) GetPosts() ([]models.Post, error) {
 	return posts, nil
 }
 
-func (service *PostService) GetPostById(id string) (models.Post, error) {
+func (service *PostService) GetPostById(id uint) (models.Post, error) {
 	var post models.Post
 
 	result := service.DB.First(&post, "id = ?", id)
@@ -53,10 +53,10 @@ func (service *PostService) GetPostById(id string) (models.Post, error) {
 		// Неужели я только благодоря своей сентинел ошибке могу идентифицировать ошибку, когда пост не найден?
 		// В простом формате без парсинга строк как будто да
 		if errors.Is(result.Error, gorm.ErrRecordNotFound) {
-			return models.Post{}, fmt.Errorf("get post %s: %w", id, ErrPostNotFound)
+			return models.Post{}, fmt.Errorf("get post %d: %w", id, ErrPostNotFound)
 		}
 
-		return models.Post{}, fmt.Errorf("get post: %s. %w", id, result.Error)
+		return models.Post{}, fmt.Errorf("get post: %d. %w", id, result.Error)
 	}
 
 	return post, nil
@@ -64,17 +64,17 @@ func (service *PostService) GetPostById(id string) (models.Post, error) {
 
 // TODO если у нас есть возможность делать, например тело поста - пустой строкой, то тут надо чётко различать, когда пользователь не трогает тело
 // и не хочет его редактировать и когда он пустую строку отправил
-func (service *PostService) UpdatePost(id string, post UpdatePostDto) (models.Post, error) {
+func (service *PostService) UpdatePost(id uint, post UpdatePostDto) (models.Post, error) {
 	var existing models.Post
 	// Get post to update
 	result := service.DB.First(&existing, "id = ?", id)
 
 	if result.Error != nil {
 		if errors.Is(result.Error, gorm.ErrRecordNotFound) {
-			return models.Post{}, fmt.Errorf("update post %s: %w", id, ErrPostNotFound)
+			return models.Post{}, fmt.Errorf("update post %d: %w", id, ErrPostNotFound)
 		}
 
-		return models.Post{}, fmt.Errorf("update post: %s, %w", id, result.Error)
+		return models.Post{}, fmt.Errorf("update post: %d, %w", id, result.Error)
 	}
 
 	updateResult := service.DB.Model(&existing).Updates(models.Post{
@@ -83,22 +83,22 @@ func (service *PostService) UpdatePost(id string, post UpdatePostDto) (models.Po
 	})
 
 	if updateResult.Error != nil {
-		return models.Post{}, fmt.Errorf("update post: %s, %w", id, updateResult.Error)
+		return models.Post{}, fmt.Errorf("update post: %d, %w", id, updateResult.Error)
 	}
 
 	return existing, nil
 }
 
-func (service *PostService) DeletePost(id string) (bool, error) {
+func (service *PostService) DeletePost(id uint) (bool, error) {
 	result := service.DB.Delete(&models.Post{}, "id = ?", id)
 
 	if result.Error != nil {
-		err := fmt.Errorf("delete post %s: %w", id, result.Error)
+		err := fmt.Errorf("delete post %d: %w", id, result.Error)
 		return false, err
 	}
 
 	if result.RowsAffected != 1 {
-		err := fmt.Errorf("delete post %s: %w", id, ErrPostNotFound)
+		err := fmt.Errorf("delete post %d: %w", id, ErrPostNotFound)
 		return false, err
 	}
 

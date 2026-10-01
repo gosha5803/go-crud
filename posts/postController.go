@@ -14,9 +14,9 @@ import (
 type IPostService interface {
 	CreatePost(CreatePostDto) (models.Post, error)
 	GetPosts() ([]models.Post, error)
-	GetPostById(string) (models.Post, error)
-	UpdatePost(string, UpdatePostDto) (models.Post, error)
-	DeletePost(string) (bool, error)
+	GetPostById(uint) (models.Post, error)
+	UpdatePost(uint, UpdatePostDto) (models.Post, error)
+	DeletePost(uint) (bool, error)
 }
 
 type PostController struct {
@@ -64,9 +64,16 @@ func (controller *PostController) getPosts(c *gin.Context) {
 }
 
 func (controller *PostController) getPostById(c *gin.Context) {
-	id := c.Param("id")
+	var req PostIdPathParam
 
-	post, err := controller.postService.GetPostById(id)
+	if err := c.ShouldBindUri(&req); err != nil {
+		// Расширить и применить форматер ошибок
+		// TODO не стоит ли одинаковую логику обработки ошибок вынести?
+		c.JSON(400, gin.H{"errors": []initializers.ClientError{{Message: "id поста должен быть положительным числом"}}})
+		return
+	}
+
+	post, err := controller.postService.GetPostById(req.ID)
 
 	if err != nil {
 		log.Printf("controller: get post by id: %v", err)
@@ -121,7 +128,13 @@ func (controller *PostController) createPost(c *gin.Context) {
 
 func (controller *PostController) updatePost(c *gin.Context) {
 	// Get id from URL
-	id := c.Param("id")
+	var req PostIdPathParam
+	// ShouldBindUri делает и биндинг, и конвертацию в int, и валидацию.
+	if err := c.ShouldBindUri(&req); err != nil {
+		// Расширить и применить форматер ошибок
+		c.JSON(400, gin.H{"errors": []initializers.ClientError{{Message: "id поста должен быть положительным числом"}}})
+		return
+	}
 
 	var body UpdatePostDto
 
@@ -131,9 +144,10 @@ func (controller *PostController) updatePost(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{
 			"errors": formatedErrors,
 		})
+		return
 	}
 
-	post, err := controller.postService.UpdatePost(id, body)
+	post, err := controller.postService.UpdatePost(req.ID, body)
 
 	if err != nil {
 		log.Printf("controller: update post: %v", err)
@@ -156,9 +170,15 @@ func (controller *PostController) updatePost(c *gin.Context) {
 
 func (controller *PostController) deletePost(c *gin.Context) {
 	// Get id from URL
-	id := c.Param("id")
+	var req PostIdPathParam
 
-	success, err := controller.postService.DeletePost(id)
+	if err := c.ShouldBindUri(&req); err != nil {
+		// Расширить и применить форматер ошибок
+		c.JSON(400, gin.H{"errors": []initializers.ClientError{{Message: "id поста должен быть положительным числом"}}})
+		return
+	}
+
+	success, err := controller.postService.DeletePost(req.ID)
 
 	if err != nil {
 		log.Printf("controller: delete post: %v", err)

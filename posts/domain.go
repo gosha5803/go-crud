@@ -8,12 +8,20 @@ import (
 
 type CreatePostDto struct {
 	Title string `json:"title" binding:"required,min=3,max=255"`
-	Body  string `json:"body" binding:"max=10000"`
+	Body  string `json:"body" binding:"omitempty,max=10000"`
 }
 
 type UpdatePostDto struct {
-	Title string `json:"title" binding:"min=3,max=255"`
+	// если пользователь не редактирует title, он присылает пустой TITLE, и без флага omitEmpty валидация заголовка по длине не пройдёт
+	// Валидация идёт по порядку, omitempty пропустит только те теги, что после него, если поле не пришло
+	Title string `json:"title" binding:"omitempty,min=3,max=255"`
 	Body  string `json:"body" binding:"max=10000"`
+}
+
+type PostIdPathParam struct {
+	// Тег `uri:"id"` говорит Gin, какой параметр пути сюда биндить.
+	// binding:"required" гарантирует, что параметр есть.
+	ID uint `uri:"id" binding:"required"`
 }
 
 type PostService struct {
@@ -24,7 +32,7 @@ type IPostController interface {
 	AssignRoutes()
 }
 
-var ErrPostNotFound = errors.New("post not found")
+var ErrPostNotFound = errors.New("Не удалось найти пост")
 
 // По NEST у нас должен быть сервис и контроллер
 // В конструктор контроллера внедряется сервис
