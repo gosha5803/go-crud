@@ -14,7 +14,7 @@ type AiModelRequest struct {
 	// TODO эту модель в теории можно передавать при каждом запросе, типо разная модель
 	// Но для моделей разных компаний нужен бужет разный клиент, поэтому пока что отключил этот функционал
 	// Model  string // "gemini-3.6-flash", "deepseek-chat" и т.п.
-	Prompt string `json:"prompt" binding:"required,min:1"`
+	Prompt string `json:"prompt" binding:"required,min=1"`
 	// сюда же: SystemPrompt, Temperature, History и т.д.
 }
 

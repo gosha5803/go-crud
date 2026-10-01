@@ -62,6 +62,8 @@ func (service *PostService) GetPostById(id string) (models.Post, error) {
 	return post, nil
 }
 
+// TODO если у нас есть возможность делать, например тело поста - пустой строкой, то тут надо чётко различать, когда пользователь не трогает тело
+// и не хочет его редактировать и когда он пустую строку отправил
 func (service *PostService) UpdatePost(id string, post UpdatePostDto) (models.Post, error) {
 	var existing models.Post
 	// Get post to update
@@ -81,7 +83,7 @@ func (service *PostService) UpdatePost(id string, post UpdatePostDto) (models.Po
 	})
 
 	if updateResult.Error != nil {
-		return models.Post{}, fmt.Errorf("update post: %s, %w", id, result.Error)
+		return models.Post{}, fmt.Errorf("update post: %s, %w", id, updateResult.Error)
 	}
 
 	return existing, nil

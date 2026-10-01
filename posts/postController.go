@@ -126,7 +126,12 @@ func (controller *PostController) updatePost(c *gin.Context) {
 	var body UpdatePostDto
 
 	// Get body from req
-	c.ShouldBindJSON(&body)
+	if err := c.ShouldBindJSON(&body); err != nil {
+		formatedErrors := initializers.FormatValidationErrors(err)
+		c.JSON(http.StatusBadRequest, gin.H{
+			"errors": formatedErrors,
+		})
+	}
 
 	post, err := controller.postService.UpdatePost(id, body)
 
@@ -159,7 +164,7 @@ func (controller *PostController) deletePost(c *gin.Context) {
 		log.Printf("controller: delete post: %v", err)
 
 		if errors.Is(err, ErrPostNotFound) {
-			c.JSON(http.StatusConflict, gin.H{"error": err.Error()})
+			c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
 			return
 		}
 

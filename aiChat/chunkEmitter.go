@@ -12,7 +12,7 @@ type ChunkEmitter struct {
 
 func NewChunkEmitter(chunkSize int, flushEvery time.Duration, yield func(*AiModelResponse, error) bool) *ChunkEmitter {
 	stableChunkSize := chunkSize
-	if stableChunkSize < 0 {
+	if stableChunkSize <= 0 {
 		stableChunkSize = 8
 	}
 
