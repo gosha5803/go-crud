@@ -19,30 +19,29 @@ type IPostService interface {
 	DeletePost(uint) (bool, error)
 }
 
+// 11:33
+
 type PostController struct {
 	g *gin.Engine
 	// Вот тут контроллер знает о типе сервиса
 	// По сути тип должны быть на уровне портов,
 	// и неявно реализовываться адаптерами
 	postService IPostService
+	path        string
 }
 
-func NewPostController(g *gin.Engine, service IPostService) *PostController {
-	return &PostController{g: g, postService: service}
+func NewPostController(g *gin.Engine, path string, service IPostService) *PostController {
+	return &PostController{g: g, postService: service, path: path}
 }
 
 func (controller *PostController) AssignRoutes() {
-
-	post := controller.g.Group("/post")
+	post := controller.g.Group(controller.path)
 	{
 		post.GET("", controller.getPosts)
-		// В nest удобно было задавать контроллеры и группы методов их,
-		// как тут использовать общий префикс - не понятно
 		post.POST("", controller.createPost)
 		post.GET("/:id", controller.GetPostByID)
 		post.PATCH("/:id", controller.updatePost)
 		post.DELETE("/:id", controller.deletePost)
-		// controller.g.POST("/chat", controller.ChatHandler)
 	}
 }
 
@@ -171,6 +170,7 @@ func respondValidationError(ctx *gin.Context, op string, err error) {
 func respondServiceError(ctx *gin.Context, op string, err error) {
 	log.Printf("controller: %s, %v", op, err)
 
+	// Использование sentinel
 	if errors.Is(err, ErrPostNotFound) {
 		ctx.JSON(http.StatusNotFound, gin.H{
 			"error": "Пост не найден",

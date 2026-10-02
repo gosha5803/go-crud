@@ -10,9 +10,9 @@ import (
 	"github.com/gosha5803/go-crud/initializers"
 	"github.com/gosha5803/go-crud/models"
 	"github.com/gosha5803/go-crud/posts"
+	"github.com/gosha5803/go-crud/user"
 )
 
-// init функция выполняется до main
 func init() {
 	initializers.LoadEnv()
 	initializers.ConnectToDB()
@@ -28,6 +28,7 @@ func main() {
 
 	r := gin.Default()
 
+	// TOODO настраивать CORS через .env
 	r.Use(cors.Default())
 
 	ctx := context.Background()
@@ -39,10 +40,13 @@ func main() {
 		return
 	}
 
-	runModules([]models.Module{posts.NewPostModule(r, initializers.DB), aiChatModule})
+	runModules([]models.Module{
+		user.NewUserModule(r, initializers.DB),
+		posts.NewPostModule(r, initializers.DB),
+		aiChatModule,
+	})
 
 	r.Run()
-
 }
 
 /*
