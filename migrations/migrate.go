@@ -1,6 +1,7 @@
 package main
 
 import (
+	"github.com/gosha5803/go-crud/auth"
 	"github.com/gosha5803/go-crud/initializers"
 	"github.com/gosha5803/go-crud/models"
 	"github.com/gosha5803/go-crud/user"
@@ -23,4 +24,5 @@ func main() {
 	// Мигрировал не ту модель
 	// Миграции хранятся историей?
 	initializers.DB.AutoMigrate(&user.User{})
+	initializers.DB.AutoMigrate(&auth.VerificationToken{})
 }

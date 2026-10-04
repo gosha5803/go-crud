@@ -7,10 +7,10 @@ import (
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
 	aichat "github.com/gosha5803/go-crud/aiChat"
+	"github.com/gosha5803/go-crud/auth"
 	"github.com/gosha5803/go-crud/initializers"
 	"github.com/gosha5803/go-crud/models"
 	"github.com/gosha5803/go-crud/posts"
-	"github.com/gosha5803/go-crud/user"
 )
 
 func init() {
@@ -41,7 +41,7 @@ func main() {
 	}
 
 	runModules([]models.Module{
-		user.NewUserModule(r, initializers.DB),
+		auth.NewAuthModule(r, initializers.DB),
 		posts.NewPostModule(r, initializers.DB),
 		aiChatModule,
 	})

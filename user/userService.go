@@ -3,9 +3,12 @@ package user
 import (
 	"fmt"
 
-	"golang.org/x/crypto/bcrypt"
 	"gorm.io/gorm"
 )
+
+type IMailService interface {
+	SendVerificationMail(string, string)
+}
 
 type UserService struct {
 	DB *gorm.DB
@@ -15,42 +18,44 @@ func NewUserService(DB *gorm.DB) *UserService {
 	return &UserService{DB: DB}
 }
 
-func (s *UserService) Auth(dto AuthReqDto) (User, error) {
+func (s *UserService) IsEmailExist(email string) (bool, error) {
 	var existingCount int64
 
-	// validate that email is Unique
 	if err := s.DB.Model(&User{}).
-		Where("email = ?", dto.Email).
+		Where("email = ?", email).
 		Count(&existingCount).Error; err != nil {
 
-		return User{}, fmt.Errorf("userService: Login: %w", err)
+		return true, fmt.Errorf("userService: Login: %w", err)
 	}
 
 	if existingCount > 0 {
-		// TODO расширить ошибку контроллера
-		return User{}, fmt.Errorf("userService: Login: %w", ErrEmailAlreadyUsed)
+		return true, nil
 	}
 
-	// TODO вынести
-	salt := 10
-	// hash password
-	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(dto.Password), salt)
+	return false, nil
+}
 
-	if err != nil {
-		return User{}, fmt.Errorf("userService: Login: %w", err)
-	}
-
+func (s *UserService) CreateUser(email string, password string) (User, error) {
 	user := User{
-		Password: string(hashedPassword),
-		Email:    dto.Email,
+		Password: password,
+		Email:    email,
 	}
 
-	result := s.DB.Create(&user)
-
-	if result.Error != nil {
-		// TODO вынести
-		return User{}, fmt.Errorf("userService: Login: %w", err)
+	if err := s.DB.Create(&user).Error; err != nil {
+		return User{}, fmt.Errorf("UserService: createUser: %w", err)
 	}
 
 	return user, nil
+}
+
+func (s *UserService) SetUserEmailVerified(userID uint, isVerified bool) error {
+
+	if userUpdateErr := s.DB.Model(&User{}).
+		Where("id = ?", userID).
+		Update("email_verified", isVerified).
+		Error; userUpdateErr != nil {
+		return fmt.Errorf("UserService: setUserEmailVerified: %w", userUpdateErr)
+	}
+
+	return nil
 }
