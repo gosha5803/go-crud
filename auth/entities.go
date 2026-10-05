@@ -65,5 +65,6 @@ func (err *HTTPErr) Unwrap() error { return err.Err }
 var (
 	ErrEmailAlreadyUsed         = &HTTPErr{Message: "Пользователь с данным email уже существует", Status: http.StatusConflict}
 	ErrVerificationTokenInvalid = &HTTPErr{Message: "Ссылка для подтверждения email не действительна", Status: http.StatusGone}
-	ErrCouldNotSendEmail        = &HTTPErr{Message: "Ошибка отправки письма с подтверждением. Попробуйте снова", Status: http.StatusServiceUnavailable}
+	ErrMailQueueFull            = &HTTPErr{Message: "Сервис отправки писем перегружен. Попробуйте позже", Status: http.StatusServiceUnavailable}
+	ErrMailQueueClosed          = &HTTPErr{Message: "Сервис временно не доступен. Попробуйте позже", Status: http.StatusServiceUnavailable}
 )

@@ -16,7 +16,7 @@ import (
 )
 
 type IMailService interface {
-	SendVerificationMail(string, string) error
+	AddVerificationJob(string, string) error
 }
 
 type IUserService interface {
@@ -27,15 +27,15 @@ type IUserService interface {
 
 type AuthService struct {
 	DB          *gorm.DB
-	mailService IMailService
+	mailQueue   IMailService
 	authConfig  AuthConfig
 	userService IUserService
 }
 
-func NewAuthService(DB *gorm.DB, mailService IMailService, authCfg AuthConfig, userService IUserService) *AuthService {
+func NewAuthService(DB *gorm.DB, mailQueue IMailService, authCfg AuthConfig, userService IUserService) *AuthService {
 	return &AuthService{
 		DB:          DB,
-		mailService: mailService,
+		mailQueue:   mailQueue,
 		authConfig:  authCfg,
 		userService: userService,
 	}
@@ -117,7 +117,7 @@ func (s *AuthService) Auth(dto AuthReqDto) (user.User, error) {
 	createdUser, createUserErr := s.userService.CreateUser(dto.Email, string(hashedPassword))
 
 	if createUserErr != nil {
-		return user.User{}, fmt.Errorf("AuthService: Auth: %w", err)
+		return user.User{}, fmt.Errorf("AuthService: Auth: %w", createUserErr)
 	}
 
 	// TODO gorutine, rabbit + monolith
@@ -151,11 +151,11 @@ func (s *AuthService) sendVerificationMail(email string, userID uint) error {
 		return fmt.Errorf("AuthService: sendVerificationMail: createToken: %w", err)
 	}
 
-	if err := s.mailService.SendVerificationMail(email, verificationToken); err != nil {
+	if err := s.mailQueue.AddVerificationJob(email, verificationToken); err != nil {
 		if delErr := s.DB.Delete(&tokenModel).Error; delErr != nil {
 			log.Printf("AuthService: sendVerificationMail: rollback failed: %v", delErr)
 		}
-		return fmt.Errorf("AuthService: sendVerificationMail: send mail: %w", ErrCouldNotSendEmail)
+		return fmt.Errorf("AuthService: sendVerificationMail: send mail: %w", err)
 	}
 
 	return nil

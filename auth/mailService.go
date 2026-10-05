@@ -41,6 +41,7 @@ func (s *MailService) SendVerificationMail(emailTo string, verificationToken str
 	)
 
 	// TODO TODO: при росте нагрузки — outbox-таблица + воркер, rabbit, gorutine?
+	// Контекст для прерывания сюда не передать.
 	if err := d.DialAndSend(m); err != nil {
 		return fmt.Errorf("mailService: SendVerificationMail: %w", err)
 	}

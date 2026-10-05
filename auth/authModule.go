@@ -1,6 +1,7 @@
 package auth
 
 import (
+	"context"
 	"log"
 	"os"
 	"strconv"
@@ -17,6 +18,7 @@ type IAuthController interface {
 
 type AuthModule struct {
 	authController IAuthController
+	mailsQueue     *MailQueue
 }
 
 // TODO не уверен
@@ -58,37 +60,61 @@ func loadMailConfig() MailConfig {
 
 }
 
-func NewAuthModule(g *gin.Engine, DB *gorm.DB) *AuthModule {
-	mailServiceConfig := loadMailConfig()
-	mailService := NewMailService(mailServiceConfig)
-
-	verificationTokenTTL := getDuration("VERIFICATION_TOKEN_TTL", 24*time.Hour)
-	bcryptCost, err := strconv.Atoi(os.Getenv("BCRYPT_COST"))
-
+func getIntEnv(key string, fallback int) int {
+	raw := os.Getenv(key)
+	if raw == "" {
+		return fallback
+	}
+	v, err := strconv.Atoi(raw)
 	if err != nil {
-		bcryptCost = 12
-		log.Fatal("NewAuthModule: failed to parse bcryptCost")
+		log.Fatalf("env %s: ожидалось целое число, получено %q", key, raw)
+	}
+	return v
+}
+
+// TODO конфиг сервис
+func loadMailQueueConfig() MailQueueConfig {
+	return MailQueueConfig{
+		Workers:    getIntEnv("MAIL_WORKERS", 3),
+		QueueSize:  getIntEnv("MAIL_QUEUE_SIZE", 10),
+		Retries:    getIntEnv("MAIL_ATTEMPTS", 3),
+		RetryDelay: getDuration("MAIL_BASE_BACKOFF", 3),
 	}
 
-	// TODO userService пока не нужен контроллер и модуль свой и репы нет, пока его прям тут инстанциирую и внедрю
+}
 
+func loadAuthConfig() AuthConfig {
+	return AuthConfig{
+		VerificationTokenTTL: getDuration("VERIFICATION_TOKEN_TTL", 3),
+		BcryptCost:           getIntEnv("BCRYPT_COST", 3),
+	}
+
+}
+
+func NewAuthModule(g *gin.Engine, DB *gorm.DB) *AuthModule {
+	mailServiceCfg := loadMailConfig()
+	mailService := NewMailService(mailServiceCfg)
+
+	// TODO userService пока не нужен контроллер и модуль свой и репы нет, пока его прям тут инстанциирую и внедрю
 	userService := user.NewUserService(DB)
-	authService := NewAuthService(
-		DB,
-		mailService,
-		AuthConfig{
-			VerificationTokenTTL: verificationTokenTTL,
-			BcryptCost:           bcryptCost,
-		},
-		userService,
-	)
+
+	mailQueueCfg := loadMailQueueConfig()
+	mailQueue := NewMailQueue(mailQueueCfg, mailService)
+
+	authConfig := loadAuthConfig()
+	authService := NewAuthService(DB, mailQueue, authConfig, userService)
 	authController := NewAuthController(g, "/auth", authService)
 
 	return &AuthModule{
 		authController: authController,
+		mailsQueue:     mailQueue,
 	}
 }
 
 func (m *AuthModule) Init() {
 	m.authController.AssignRoutes()
+}
+
+func (m *AuthModule) Close(ctx context.Context) error {
+	return m.mailsQueue.Close(ctx)
 }

@@ -3,6 +3,11 @@ package main
 import (
 	"context"
 	"log"
+	"net/http"
+	"os"
+	"os/signal"
+	"syscall"
+	"time"
 
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
@@ -27,26 +32,44 @@ func runModules(modules []models.Module) {
 func main() {
 
 	r := gin.Default()
-
-	// TOODO настраивать CORS через .env
 	r.Use(cors.Default())
 
-	ctx := context.Background()
+	// отмена этого контекста, идущего в модуль позволяет воркерам начать быстро разбирать оставшуюся очередь
+	appCtx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stop()
 
-	aiChatModule, err := aichat.NewAiChatModule(ctx, r)
-
+	aiChatModule, err := aichat.NewAiChatModule(appCtx, r)
 	if err != nil {
 		log.Printf("main: %v", err)
 		return
 	}
+	authModule := auth.NewAuthModule(r, initializers.DB)
 
 	runModules([]models.Module{
-		auth.NewAuthModule(r, initializers.DB),
-		posts.NewPostModule(r, initializers.DB),
+		authModule,
 		aiChatModule,
+		posts.NewPostModule(r, initializers.DB),
 	})
 
-	r.Run()
+	srv := &http.Server{
+		Addr:    "4020",
+		Handler: r,
+	}
+
+	go srv.ListenAndServe()
+
+	<-appCtx.Done()
+
+	// Это контекст, чтобы прям убить работу модуля
+	// создаётся не от App, а от Background()
+	// TODO немного странно, что какую-то мидисекунду, канал ещё не закрыт, а воркеры уже опустошают его в быстром моде. Нельзя ли завязать всё на 1 контекст?
+	// Хотя почти всё на это и завязано, так как второй контекст сразу же создаётся и вызывается Close
+	shutDownCtx, cancel := context.WithTimeout(context.Background(), time.Second*10)
+	defer cancel()
+
+	srv.Shutdown(shutDownCtx)
+	authModule.Close(shutDownCtx)
+
 }
 
 /*
