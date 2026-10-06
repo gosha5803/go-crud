@@ -2,7 +2,6 @@ package auth
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"sync"
 	"time"
@@ -132,7 +131,7 @@ func (q *MailQueue) recoverWrap(job MailJob) (err error) {
 	// В каждой горутине свой отлов паники
 	defer func() {
 		if panicErr := recover(); panicErr != nil {
-			err = fmt.Errorf("MailQueue: recoverWrap: %w", panicErr)
+			err = fmt.Errorf("MailQueue: recoverWrap: %v", panicErr)
 		}
 	}()
 
@@ -167,7 +166,12 @@ func (q *MailQueue) handleJob(job MailJob) error {
 			}
 		}
 
-		return fmt.Errorf("MailQueue: handleJob: to: %s: %w", job.To, errors.New("out of retries"))
+		return fmt.Errorf(
+			"MailQueue: handleJob: to: %s: after %d retries: %w",
+			job.To,
+			q.cfg.Retries,
+			err,
+		)
 	}
 
 	return nil

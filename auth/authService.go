@@ -5,7 +5,6 @@ import (
 	"crypto/sha256"
 	"encoding/base64"
 	"encoding/hex"
-	"errors"
 	"fmt"
 	"log"
 	"time"
@@ -13,6 +12,7 @@ import (
 	"github.com/gosha5803/go-crud/user"
 	"golang.org/x/crypto/bcrypt"
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
 
 type IMailService interface {
@@ -20,7 +20,7 @@ type IMailService interface {
 }
 
 type IUserService interface {
-	SetUserEmailVerified(uint, bool) error
+	SetUserEmailVerified(*gorm.DB, uint, bool) error
 	IsEmailExist(string) (bool, error)
 	CreateUser(string, string) (user.User, error)
 }
@@ -42,49 +42,47 @@ func NewAuthService(DB *gorm.DB, mailQueue IMailService, authCfg AuthConfig, use
 }
 
 func (s *AuthService) ActivateUser(verificationToken string) error {
+	// Изменить UsedAt у токена и EmailVerified
+	// Тут конкурентность запросов с одинаковым токеном.
+	// Оба могу пройти проверки валидности токен аи дважды его изменить?
+	// Нет, строка конкретного токена блокируется на момент UPDATE и
+	// второй запрос либо не найдёт такую строку либо потдвердит пользователя
+	// где used_at IS NULL, если до этого отработает первый запрос
 	tokenHash := s.hashVerificationToken(verificationToken)
+	now := time.Now()
 
-	var token VerificationToken
+	tokenUpdateErr := s.DB.Transaction(func(tx *gorm.DB) error {
+		var token VerificationToken
 
-	// Что вот сейчас происходит, я передаю указатель на безымянную структуру?
-	err := s.DB.
-		Where("hash = ?", tokenHash).
-		First(&token).Error
+		res := tx.Model(&token).
+			Clauses(clause.Returning{}).
+			Where("hash = ? AND used_at IS NULL AND expires_at > ?", tokenHash, now).
+			Update("used_at", now)
+			// Убрали конкурентность апдейта и все проверки протухлости и использования и соответствия хеша в одном запросе к БД
 
-	if err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return fmt.Errorf("AuthService: ActivateUser: token not found: , %w", ErrVerificationTokenInvalid)
+		if res.Error != nil {
+			return res.Error
 		}
 
-		return fmt.Errorf("AuthService: ActivateUser: %w", err)
-	}
+		// Если условия поиска токена для обновления не выполнятся,
+		// ошибки не будет но в rows affected будет 0
+		if res.RowsAffected == 0 {
+			return ErrVerificationTokenInvalid
+		}
 
-	if token.UsedAt != nil {
-		return fmt.Errorf("AuthService: ActivateUser: token already used: %w", ErrVerificationTokenInvalid)
-	}
+		return s.userService.SetUserEmailVerified(tx, token.UserID, true)
 
-	// TODO как пользаку подтвердить почту, если токен протух? Удалять пользователя?
-	if token.ExpiresAt.Before(time.Now()) {
-		return fmt.Errorf("AuthService: ActivateUser: token expired: %w", ErrVerificationTokenInvalid)
-	}
-
-	// Изменить UsedAt у токена и EmailVerified
-	tokenUpdateErr := s.DB.Exec(`
-			UPDATE verification_tokens
-			SET used_at = ?, updated_at = ?
-			WHERE id = ? AND used_at IS NULL
-		`, time.Now(), time.Now(), token.ID).Error
+	})
+	// обновление токена и флага активации пользователя
+	// в разных операциях, опять же пользователь может остаться не
+	// активированным, а токен протухнет
+	// Решается ли это ретраем активации почты?
 
 	if tokenUpdateErr != nil {
 		return fmt.Errorf("AuthService: ActivateUser: %w", tokenUpdateErr)
 	}
 
 	// сервис пользователя
-	userUpdateErr := s.userService.SetUserEmailVerified(token.UserID, true)
-
-	if userUpdateErr != nil {
-		return fmt.Errorf("AuthService: ActivateUser: %w", userUpdateErr)
-	}
 
 	return nil
 }
@@ -122,6 +120,13 @@ func (s *AuthService) Auth(dto AuthReqDto) (user.User, error) {
 
 	// TODO gorutine, rabbit + monolith
 	// Ретраи типо, не пришло письмо? попробовать ещё раз (и таймер)
+	// TODO Если в итоге воркер упадёт с ошибкой,
+	// На форме регистрации, как только введён валидный email улетает запрос,
+	// подтверждён ли пользак
+	// И если не подтверждён, тогда пишем пользаку, хотите подтвердить?
+	// Или насильно заставляем. Кнопку даём, по которой отправляем письмо.
+	// пользователь не сможет ни повторно зарегаться по новой email уже есть,
+	// ни получить ссылку
 	if err := s.sendVerificationMail(createdUser.Email, createdUser.ID); err != nil {
 		return user.User{}, fmt.Errorf("AuthService: Auth: %w", err)
 	}

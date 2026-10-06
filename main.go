@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"log"
 	"net/http"
 	"os"
@@ -34,9 +35,8 @@ func main() {
 	r := gin.Default()
 	r.Use(cors.Default())
 
-	// отмена этого контекста, идущего в модуль позволяет воркерам начать быстро разбирать оставшуюся очередь
+	// Нет, отмена этого контекста просто запускает закрытие очереди и сервера
 	appCtx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
-	defer stop()
 
 	aiChatModule, err := aichat.NewAiChatModule(appCtx, r)
 	if err != nil {
@@ -51,15 +51,21 @@ func main() {
 		posts.NewPostModule(r, initializers.DB),
 	})
 
+	appPort := os.Getenv("APP_PORT")
 	srv := &http.Server{
-		Addr:    "4020",
+		Addr:    fmt.Sprintf(":%s", appPort),
 		Handler: r,
 	}
 
-	go srv.ListenAndServe()
+	go func() {
+		if err := srv.ListenAndServe(); err != nil {
+			log.Printf("main listen %v", err)
+			stop()
+		}
+	}()
 
 	<-appCtx.Done()
-
+	stop()
 	// Это контекст, чтобы прям убить работу модуля
 	// создаётся не от App, а от Background()
 	// TODO немного странно, что какую-то мидисекунду, канал ещё не закрыт, а воркеры уже опустошают его в быстром моде. Нельзя ли завязать всё на 1 контекст?
@@ -68,7 +74,9 @@ func main() {
 	defer cancel()
 
 	srv.Shutdown(shutDownCtx)
-	authModule.Close(shutDownCtx)
+	if err := authModule.Close(shutDownCtx); err != nil {
+		log.Fatalf("main: %w", err)
+	}
 
 }
 

@@ -38,7 +38,7 @@ func getDuration(key string, fallback time.Duration) time.Duration {
 func loadMailConfig() MailConfig {
 	// TODO нужен общий конфиг сервис с логикуой валидации .env
 	appHost := os.Getenv("APP_HOST")
-	appPort := os.Getenv("PORT")
+	appPort := os.Getenv("APP_PORT")
 	username := os.Getenv("SMTP_USERNAME")
 	mailHost := os.Getenv("SMTP_HOST")
 	password := os.Getenv("SMTP_PASSWORD")
@@ -78,14 +78,15 @@ func loadMailQueueConfig() MailQueueConfig {
 		Workers:    getIntEnv("MAIL_WORKERS", 3),
 		QueueSize:  getIntEnv("MAIL_QUEUE_SIZE", 10),
 		Retries:    getIntEnv("MAIL_ATTEMPTS", 3),
-		RetryDelay: getDuration("MAIL_BASE_BACKOFF", 3),
+		RetryDelay: getDuration("MAIL_BASE_BACKOFF", 3*time.Second),
+		MaxDelay:   getDuration("MAIL_MAX_RETRY_DELAY", 30*time.Second),
 	}
 
 }
 
 func loadAuthConfig() AuthConfig {
 	return AuthConfig{
-		VerificationTokenTTL: getDuration("VERIFICATION_TOKEN_TTL", 3),
+		VerificationTokenTTL: getDuration("VERIFICATION_TOKEN_TTL", time.Hour*12),
 		BcryptCost:           getIntEnv("BCRYPT_COST", 3),
 	}
 

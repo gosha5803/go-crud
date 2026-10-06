@@ -48,9 +48,9 @@ func (s *UserService) CreateUser(email string, password string) (User, error) {
 	return user, nil
 }
 
-func (s *UserService) SetUserEmailVerified(userID uint, isVerified bool) error {
+func (s *UserService) SetUserEmailVerified(tx *gorm.DB, userID uint, isVerified bool) error {
 
-	if userUpdateErr := s.DB.Model(&User{}).
+	if userUpdateErr := tx.Model(&User{}).
 		Where("id = ?", userID).
 		Update("email_verified", isVerified).
 		Error; userUpdateErr != nil {
