@@ -11,7 +11,8 @@ type PostModule struct {
 
 func NewPostModule(gin *gin.Engine, DB *gorm.DB) *PostModule {
 	// Ни сервис ни контроллер ничего не знают друг о друге кроме типов
-	service := NewPostService(DB)
+	repo := NewPostRepository(DB)
+	service := NewPostService(repo)
 	controller := NewPostController(gin, "/post", service)
 
 	return &PostModule{

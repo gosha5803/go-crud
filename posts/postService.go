@@ -1,106 +1,50 @@
 package posts
 
 import (
-	"errors"
-	"fmt"
+	"context"
 
 	"github.com/gosha5803/go-crud/models"
-	"gorm.io/gorm"
 )
 
-func NewPostService(db *gorm.DB) *PostService {
-	return &PostService{DB: db}
+type IPostRepository interface {
+	CreatePost(context.Context, CreatePostDto) (models.Post, error)
+	GetPostById(context.Context,uint) (models.Post, error)
+	GetPosts(context.Context) ( []models.Post, error)
+	UpdatePost(context.Context,uint, UpdatePostDto) (models.Post, error)
+	DeletePostById(context.Context,uint) error
+	IncrementViews( context.Context,  uint)(models.Post, error)
 }
 
-// TODO реализовать методы
-// Инстанциировать классы в модуле что ли)
-
-func (service *PostService) CreatePost(postDTO CreatePostDto) (models.Post, error) {
-	newPost := models.Post{
-		Title: postDTO.Title,
-		Body:  postDTO.Body,
-	}
-
-	result := service.DB.Create(&newPost)
-
-	if result.Error != nil {
-		err := fmt.Errorf("service: createPost: %w", result.Error)
-		return models.Post{}, err
-	}
-
-	return newPost, nil
+type PostService struct {
+	repo IPostRepository
 }
 
-func (service *PostService) GetPosts() ([]models.Post, error) {
-	var posts []models.Post
-
-	// Мутация и назначение через указатель
-	if result := service.DB.Find(&posts); result.Error != nil {
-		err := fmt.Errorf("service: getPosts: %w", result.Error)
-
-		return []models.Post{}, err
-	}
-
-	return posts, nil
+func NewPostService(repo IPostRepository) *PostService {
+	return &PostService{repo: repo}
 }
 
-func (service *PostService) GetPostById(id uint) (models.Post, error) {
-	var post models.Post
+func (service *PostService) IncrementViews(ctx context.Context, postId uint)(models.Post, error) {
+	return service.repo.IncrementViews(ctx, postId)
+}
 
-	result := service.DB.First(&post, "id = ?", id)
+func (service *PostService) CreatePost(ctx context.Context,postDTO CreatePostDto) (models.Post, error) {
+	return service.repo.CreatePost(ctx, postDTO)
+}
 
-	if result.Error != nil {
-		// Неужели я только благодоря своей сентинел ошибке могу идентифицировать ошибку, когда пост не найден?
-		// В простом формате без парсинга строк как будто да
-		if errors.Is(result.Error, gorm.ErrRecordNotFound) {
-			return models.Post{}, fmt.Errorf("get post %d: %w", id, ErrPostNotFound)
-		}
+func (service *PostService) GetPosts(ctx context.Context) ([]models.Post, error) {
+	return service.repo.GetPosts(ctx)
+}
 
-		return models.Post{}, fmt.Errorf("get post: %d. %w", id, result.Error)
-	}
-
-	return post, nil
+func (service *PostService) GetPostById(ctx context.Context,id uint) (models.Post, error) {
+	return service.repo.GetPostById(ctx,id)
 }
 
 // TODO если у нас есть возможность делать, например тело поста - пустой строкой, то тут надо чётко различать, когда пользователь не трогает тело
 // и не хочет его редактировать и когда он пустую строку отправил
-func (service *PostService) UpdatePost(id uint, post UpdatePostDto) (models.Post, error) {
-	var existing models.Post
-	// Get post to update
-	result := service.DB.First(&existing, "id = ?", id)
-
-	if result.Error != nil {
-		if errors.Is(result.Error, gorm.ErrRecordNotFound) {
-			return models.Post{}, fmt.Errorf("update post %d: %w", id, ErrPostNotFound)
-		}
-
-		return models.Post{}, fmt.Errorf("update post: %d, %w", id, result.Error)
-	}
-
-	updateResult := service.DB.Model(&existing).Updates(models.Post{
-		Title: post.Title,
-		Body:  post.Body,
-	})
-
-	if updateResult.Error != nil {
-		return models.Post{}, fmt.Errorf("update post: %d, %w", id, updateResult.Error)
-	}
-
-	return existing, nil
+func (service *PostService) UpdatePost(ctx context.Context,id uint, post UpdatePostDto) (models.Post, error) {
+	return service.repo.UpdatePost(ctx,id, post)
 }
 
-func (service *PostService) DeletePost(id uint) (bool, error) {
-	result := service.DB.Delete(&models.Post{}, "id = ?", id)
-
-	if result.Error != nil {
-		err := fmt.Errorf("delete post %d: %w", id, result.Error)
-		return false, err
-	}
-
-	if result.RowsAffected != 1 {
-		err := fmt.Errorf("delete post %d: %w", id, ErrPostNotFound)
-		return false, err
-	}
-
-	return true, nil
+func (service *PostService) DeletePost(ctx context.Context,id uint) (error) {
+	return service.repo.DeletePostById(ctx, id)
 }

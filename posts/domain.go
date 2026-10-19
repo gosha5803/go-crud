@@ -2,8 +2,6 @@ package posts
 
 import (
 	"errors"
-
-	"gorm.io/gorm"
 )
 
 type CreatePostDto struct {
@@ -22,10 +20,6 @@ type PostIdPathParam struct {
 	// Тег `uri:"id"` говорит Gin, какой параметр пути сюда биндить.
 	// binding:"required" гарантирует, что параметр есть.
 	ID uint `uri:"id" binding:"required"`
-}
-
-type PostService struct {
-	DB *gorm.DB
 }
 
 type IPostController interface {

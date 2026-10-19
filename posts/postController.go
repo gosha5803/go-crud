@@ -1,6 +1,7 @@
 package posts
 
 import (
+	"context"
 	"errors"
 	"log"
 	"net/http"
@@ -12,11 +13,12 @@ import (
 
 // Go-сообщество склоняется к тому, что интерфейс должен объявляться там, где он потребляется, а не там, где реализуется.
 type IPostService interface {
-	CreatePost(CreatePostDto) (models.Post, error)
-	GetPosts() ([]models.Post, error)
-	GetPostById(uint) (models.Post, error)
-	UpdatePost(uint, UpdatePostDto) (models.Post, error)
-	DeletePost(uint) (bool, error)
+	CreatePost(context.Context, CreatePostDto) (models.Post, error)
+	GetPosts(context.Context) ([]models.Post, error)
+	GetPostById(context.Context,uint) (models.Post, error)
+	UpdatePost(context.Context,uint, UpdatePostDto) (models.Post, error)
+	DeletePost(context.Context,uint) (error)
+	IncrementViews( context.Context,  uint)(models.Post, error)
 }
 
 // 11:33
@@ -42,14 +44,40 @@ func (controller *PostController) AssignRoutes() {
 		post.GET("/:id", controller.GetPostByID)
 		post.PATCH("/:id", controller.updatePost)
 		post.DELETE("/:id", controller.deletePost)
+		post.POST("/:id/views", controller.incrementViews)
 	}
 }
 
+func (controller *PostController) incrementViews(c *gin.Context) {
+	var req PostIdPathParam
+	op := "increment views"
+
+	if err := c.ShouldBindUri(&req); err != nil {
+		respondInvalidID(c, op, err)
+		return
+	}
+
+	ctx := c.Request.Context()
+	post, err := controller.postService.IncrementViews(ctx, req.ID)
+	
+	if err != nil {
+		respondServiceError(c, op, err)
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"post": post,
+	})
+
+}
+
 func (controller *PostController) getPosts(c *gin.Context) {
-	posts, err := controller.postService.GetPosts()
+	ctx := c.Request.Context()
+	posts, err := controller.postService.GetPosts(ctx)
+	op := "getPosts"
 
 	if err != nil {
-		respondServiceError(c, "getPosts", err)
+		respondServiceError(c, op, err)
 		return
 	}
 
@@ -60,16 +88,18 @@ func (controller *PostController) getPosts(c *gin.Context) {
 
 func (controller *PostController) GetPostByID(c *gin.Context) {
 	var req PostIdPathParam
-
+	op := "getPostById"
+	
 	if err := c.ShouldBindUri(&req); err != nil {
-		respondInvalidID(c, "getPostById", err)
+		respondInvalidID(c, op, err)
 		return
 	}
-
-	post, err := controller.postService.GetPostById(req.ID)
+	
+	ctx := c.Request.Context()
+	post, err := controller.postService.GetPostById(ctx, req.ID)
 
 	if err != nil {
-		respondServiceError(c, "getPostById", err)
+		respondServiceError(c, op, err)
 		return
 	}
 
@@ -80,19 +110,21 @@ func (controller *PostController) GetPostByID(c *gin.Context) {
 
 func (controller *PostController) createPost(c *gin.Context) {
 	var body CreatePostDto
+	op := "createPost"
 
 	// c.Bind` сам пишет 400 и игнорирует ошибку в твоём коде
 	// c.ShouldBindJSON - тут отлавливается связь с required gin
 	// Понять как он работает и все дела.
 	if err := c.ShouldBindJSON(&body); err != nil {
-		respondValidationError(c, "createPost", err)
+		respondValidationError(c, op, err)
 		return
 	}
 
-	post, err := controller.postService.CreatePost(body)
-
+	ctx := c.Request.Context()
+	post, err := controller.postService.CreatePost(ctx, body)
+	
 	if err != nil {
-		respondServiceError(c, "createPost", err)
+		respondServiceError(c, op, err)
 		return
 	}
 
@@ -104,24 +136,26 @@ func (controller *PostController) createPost(c *gin.Context) {
 func (controller *PostController) updatePost(c *gin.Context) {
 	// Get id from URL
 	var req PostIdPathParam
+	op := "updatePost"
 	// ShouldBindUri делает и биндинг, и конвертацию в int, и валидацию.
 	if err := c.ShouldBindUri(&req); err != nil {
-		respondInvalidID(c, "updatePost", err)
+		respondInvalidID(c, op, err)
 		return
 	}
-
+	
 	var body UpdatePostDto
-
+	
 	// Get body from req
 	if err := c.ShouldBindJSON(&body); err != nil {
-		respondValidationError(c, "updatePost", err)
+		respondValidationError(c, op, err)
 		return
 	}
-
-	post, err := controller.postService.UpdatePost(req.ID, body)
+	
+	ctx := c.Request.Context()
+	post, err := controller.postService.UpdatePost(ctx, req.ID, body)
 
 	if err != nil {
-		respondServiceError(c, "updatePost", err)
+		respondServiceError(c, op, err)
 		return
 	}
 
@@ -133,22 +167,22 @@ func (controller *PostController) updatePost(c *gin.Context) {
 func (controller *PostController) deletePost(c *gin.Context) {
 	// Get id from URL
 	var req PostIdPathParam
+	op := "deletePost"
 
 	if err := c.ShouldBindUri(&req); err != nil {
-		respondInvalidID(c, "deletePost", err)
+		respondInvalidID(c, op, err)
 		return
 	}
 
-	success, err := controller.postService.DeletePost(req.ID)
+	ctx := c.Request.Context()
+	err := controller.postService.DeletePost(ctx, req.ID)
 
 	if err != nil {
-		respondServiceError(c, "deletePost", err)
+		respondServiceError(c, op, err)
 		return
 	}
 
-	c.JSON(200, gin.H{
-		"success": success,
-	})
+	c.JSON(200, gin.H{})
 }
 
 func respondInvalidID(ctx *gin.Context, op string, err error) {
