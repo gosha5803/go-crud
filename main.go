@@ -14,6 +14,7 @@ import (
 	"github.com/gin-gonic/gin"
 	aichat "github.com/gosha5803/go-crud/aiChat"
 	"github.com/gosha5803/go-crud/auth"
+	"github.com/gosha5803/go-crud/health"
 	"github.com/gosha5803/go-crud/initializers"
 	"github.com/gosha5803/go-crud/models"
 	"github.com/gosha5803/go-crud/posts"
@@ -49,6 +50,7 @@ func main() {
 		authModule,
 		aiChatModule,
 		posts.NewPostModule(r, initializers.DB),
+		health.NewHealthModule(r, initializers.DB),
 	})
 
 	appPort := os.Getenv("APP_PORT")
@@ -72,10 +74,16 @@ func main() {
 	// Хотя почти всё на это и завязано, так как второй контекст сразу же создаётся и вызывается Close
 	shutDownCtx, cancel := context.WithTimeout(context.Background(), time.Second*10)
 	defer cancel()
-
+	
+	// Ждёт либо таймаута 10 - секунд либо, закрытия всех http запросов
 	srv.Shutdown(shutDownCtx)
 	if err := authModule.Close(shutDownCtx); err != nil {
-		log.Fatalf("main: %w", err)
+		log.Fatalf("main: %v", err)
+	}
+
+	plainPool := initializers.GetPlainPool()
+	if err := plainPool.Close(); err != nil {
+		log.Fatalf("main: %v", err)
 	}
 
 }
