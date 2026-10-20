@@ -14,8 +14,8 @@ type CreatePostDto struct {
 type UpdatePostDto struct {
 	// если пользователь не редактирует title, он присылает пустой TITLE, и без флага omitEmpty валидация заголовка по длине не пройдёт
 	// Валидация идёт по порядку, omitempty пропустит только те теги, что после него, если поле не пришло
-	Title string `json:"title" binding:"omitempty,min=3,max=255"`
-	Body  string `json:"body" binding:"max=10000"`
+	Title *string `json:"title" binding:"omitempty,min=3,max=255"`
+	Body  *string `json:"body" binding:"omitempty,max=10000"`
 }
 
 type PostIdPathParam struct {

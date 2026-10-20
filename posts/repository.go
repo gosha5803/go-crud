@@ -104,15 +104,26 @@ func (r *PostRepository) UpdatePost(ctx context.Context, postID uint, updatePost
 		return models.Post{}, fmt.Errorf("%s: %d, %w", op, postID, err)
 	}
 
-	if err := r.DB.
+	updates := map[string]any{}
+
+	if updatePostDto.Body != nil {updates["body"] = *updatePostDto.Body}
+	if updatePostDto.Title!= nil {updates["title"] = *updatePostDto.Title}
+
+	if len(updates) == 0 {
+		return post, nil
+	}
+
+	result := r.DB.
 	WithContext(ctx).
 	Model(&post).
-	Updates(map[string]any{
-		"title": updatePostDto.Title,
-		"body": updatePostDto.Body,
-	}).
-	Error; err != nil {
-		return models.Post{}, fmt.Errorf("%s: %d, %w", op, postID, err)
+	Updates(updates)
+
+	if result.Error != nil {
+		return models.Post{}, fmt.Errorf("%s: %d, %w", op, postID, result.Error)
+	}
+
+	if result.RowsAffected == 0 {
+		return models.Post{}, fmt.Errorf("%s %d: %w", op, postID, ErrPostNotFound)
 	}
 
 	return post, nil
