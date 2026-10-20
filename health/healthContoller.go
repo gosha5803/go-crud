@@ -33,6 +33,7 @@ func (c *HealthController) health(g *gin.Context) {
 		g.JSON(http.StatusInternalServerError, gin.H{
 			"error": "Непредвиденная ошибка, попробуйте позже",
 		})
+		return 
 	}
 
 	g.JSON(http.StatusOK, gin.H{

@@ -162,7 +162,7 @@ func (q *MailQueue) handleJob(job MailJob) error {
 				continue
 			case <-q.ctx.Done():
 				// Если контекст прерывается сразу пролетаем сюда
-				return fmt.Errorf("MailQueue: handleJob: to: %s: %w", job.To, err)
+				return fmt.Errorf("MailQueue: handleJob: to: %s: %w", job.To, q.ctx.Err())
 			}
 		}
 
