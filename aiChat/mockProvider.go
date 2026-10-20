@@ -35,7 +35,7 @@ func NewMockProvider(filePath string) (*MockProvider, error) {
 	return &MockProvider{filePath: filePath}, nil
 }
 
-func (p *MockProvider) StreamResponse(context.Context, AiModelRequest) iter.Seq2[*AiModelResponse, error] {
+func (p *MockProvider) StreamResponse(ctx context.Context, req AiModelRequest) iter.Seq2[*AiModelResponse, error] {
 	// TODO можно использовать для тестов
 	file, err := os.ReadFile(p.filePath)
 
@@ -60,17 +60,25 @@ func (p *MockProvider) StreamResponse(context.Context, AiModelRequest) iter.Seq2
 
 			if m.Message == nil {
 				if m.Done != nil {
-					yield(&AiModelResponse{IsFinal: true}, nil)
+					yield(&AiModelResponse{IsFinal: true}, nil) 
+					return 
+					
 				}
 				continue
 			}
 
-			time.Sleep(100 * time.Millisecond)
-
-			resp := &AiModelResponse{Text: m.Message.Text}
-			if !yield(resp, nil) {
-				return
+			select {
+				// Добавил отмену мокового провайдера по контексту
+			case <- ctx.Done():
+				yield(&AiModelResponse{IsFinal: true}, nil)
+				return 
+			case <- time.After(100 * time.Millisecond):
+				resp := &AiModelResponse{Text: m.Message.Text}
+				if !yield(resp, nil) {
+					return
+				}
 			}
+
 		}
 	}
 }
