@@ -1,6 +1,8 @@
 package user
 
 import (
+	"context"
+	"errors"
 	"fmt"
 
 	"gorm.io/gorm"
@@ -18,21 +20,24 @@ func NewUserService(DB *gorm.DB) *UserService {
 	return &UserService{DB: DB}
 }
 
-func (s *UserService) IsEmailExist(email string) (bool, error) {
-	var existingCount int64
+func (s *UserService) FindUserByEmail(ctx context.Context, email string) (User, error) {
+	var user User
+	op := "UserService.FindUserByEmail"
 
-	if err := s.DB.Model(&User{}).
+	result := s.DB.
+		WithContext(ctx).
 		Where("email = ?", email).
-		Count(&existingCount).Error; err != nil {
+		First(&user)
+		
+	if result.Error!= nil {
+		if errors.Is(result.Error, gorm.ErrRecordNotFound) {
+			return User{}, fmt.Errorf("%s: %w", op, ErrUserNotFound)
+		}
 
-		return true, fmt.Errorf("userService: Login: %w", err)
+		return User{}, fmt.Errorf("%s: %w", op, result.Error)
 	}
 
-	if existingCount > 0 {
-		return true, nil
-	}
-
-	return false, nil
+	return user, nil
 }
 
 func (s *UserService) CreateUser(email string, password string) (User, error) {

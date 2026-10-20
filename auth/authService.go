@@ -1,10 +1,12 @@
 package auth
 
 import (
+	"context"
 	"crypto/rand"
 	"crypto/sha256"
 	"encoding/base64"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"log"
 	"time"
@@ -21,7 +23,7 @@ type IMailService interface {
 
 type IUserService interface {
 	SetUserEmailVerified(*gorm.DB, uint, bool) error
-	IsEmailExist(string) (bool, error)
+	FindUserByEmail(context.Context, string) (user.User, error)
 	CreateUser(string, string) (user.User, error)
 }
 
@@ -39,6 +41,22 @@ func NewAuthService(DB *gorm.DB, mailQueue IMailService, authCfg AuthConfig, use
 		authConfig:  authCfg,
 		userService: userService,
 	}
+}
+
+func (s *AuthService) RetryEmailVerification(ctx context.Context, email string) error {
+	op := "AuthService.RetryEmailVerification"
+	existingUser, err := s.userService.FindUserByEmail(ctx, email)
+
+	
+	if err != nil {
+		return fmt.Errorf("%s: %w", op, err)
+	}
+
+	if existingUser.EmailVerified {
+		return fmt.Errorf("%s, %w", op, ErrEmailVerified)
+	}
+
+	return s.sendVerificationMail(existingUser.Email, existingUser.ID)
 }
 
 func (s *AuthService) ActivateUser(verificationToken string) error {
@@ -89,16 +107,18 @@ func (s *AuthService) ActivateUser(verificationToken string) error {
 
 // TODO мб покрыть ActivateUser тестами.
 // TODO далее внедрять JWT
-func (s *AuthService) Auth(dto AuthReqDto) (user.User, error) {
+func (s *AuthService) Auth(ctx context.Context, dto AuthReqDto) (user.User, error) {
 	// TODO где-то я подменяю обраение к модели напрямую через обращение к сервису, но не вот тут, например,
 	// где мне надо вернуть пустого пользака
-	emailExist, err := s.userService.IsEmailExist(dto.Email)
+	_, err := s.userService.FindUserByEmail(ctx, dto.Email)
 
 	if err != nil {
-		return user.User{}, fmt.Errorf("AuthService: Auth: %w", err)
+		if !errors.Is(err, user.ErrUserNotFound) {
+			return user.User{}, fmt.Errorf("AuthService: Auth: %w", err)
+		}
 	}
 
-	if emailExist {
+	if err == nil {
 		return user.User{}, fmt.Errorf("AuthService: Auth: %w", ErrEmailAlreadyUsed)
 	}
 

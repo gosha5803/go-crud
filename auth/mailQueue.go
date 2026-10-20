@@ -120,7 +120,7 @@ func (q *MailQueue) worker(id int) {
 		fmt.Printf("Wirker %d took job with to: %s", id, job.To)
 		if err := q.recoverWrap(job); err != nil {
 			// TODO тут ошибку некуда возвращать
-			formatedErr := fmt.Errorf("MailQueue: worker: to: %s: %w", job.To, err)
+			formatedErr := fmt.Errorf("MailQueue: worker to: %s: %w", job.To, err)
 			fmt.Println(formatedErr)
 		}
 

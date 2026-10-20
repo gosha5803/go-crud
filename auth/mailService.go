@@ -39,6 +39,7 @@ func (s *MailService) SendVerificationMail(emailTo string, verificationToken str
 		s.config.mailUserName,
 		s.config.mailPassword,
 	)
+	
 
 	// TODO TODO: при росте нагрузки — outbox-таблица + воркер, rabbit, gorutine?
 	// Контекст для прерывания сюда не передать.

@@ -1,6 +1,8 @@
 package user
 
 import (
+	"errors"
+
 	"gorm.io/gorm"
 )
 
@@ -10,3 +12,5 @@ type User struct {
 	Email         string `gorm:"uniqueIndex;not null;size:255"`
 	EmailVerified bool   `gorm:"not null;default:false"`
 }
+
+var ErrUserNotFound = errors.New("User not found")

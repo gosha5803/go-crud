@@ -2,6 +2,7 @@ package auth
 
 // 10:50
 import (
+	"context"
 	"errors"
 	"log"
 	"net/http"
@@ -11,19 +12,22 @@ import (
 	"github.com/gosha5803/go-crud/user"
 )
 
+
 type IAuthService interface {
-	Auth(AuthReqDto) (user.User, error)
+	Auth(context.Context, AuthReqDto) (user.User, error)
 	ActivateUser(string) error
+	// Метод сервиса уже не должен на DTO быть завязан, так как транспорт может быть разный
+	RetryEmailVerification(context.Context, string) error
 }
 
 type AuthController struct {
 	g       *gin.Engine
 	path    string
-	servcie IAuthService
+	service IAuthService
 }
 
-func NewAuthController(g *gin.Engine, path string, servcie IAuthService) *AuthController {
-	return &AuthController{g: g, path: path, servcie: servcie}
+func NewAuthController(g *gin.Engine, path string, service IAuthService) *AuthController {
+	return &AuthController{g: g, path: path, service: service}
 }
 
 func (c *AuthController) AssignRoutes() {
@@ -31,9 +35,31 @@ func (c *AuthController) AssignRoutes() {
 
 	preffix.POST("/register", c.register)
 	preffix.GET("/activate", c.activateUser)
+	preffix.POST("/retry-email-verification", c.retryEmailVerification)
 }
 
 // start 11 45
+
+func (c *AuthController) retryEmailVerification(ctx *gin.Context) {
+	op := "AuthController.retryEmailVerification"
+	var emailDto EmailDto
+
+	if err := ctx.ShouldBindJSON(&emailDto); err != nil {
+		respondValidationError(ctx, op, err)
+		return 
+	}
+
+	context := ctx.Request.Context()
+
+	if err := c.service.RetryEmailVerification(context, emailDto.Email); err != nil {
+		respondServiceError(ctx, op, err)
+		return	
+	}
+
+	ctx.JSON(http.StatusOK, gin.H{
+		"data": verificationEmailSendDto,
+	})
+}
 
 func (c *AuthController) activateUser(ctx *gin.Context) {
 	var req ActivateUserDto
@@ -43,7 +69,7 @@ func (c *AuthController) activateUser(ctx *gin.Context) {
 		return
 	}
 
-	if err := c.servcie.ActivateUser(req.Token); err != nil {
+	if err := c.service.ActivateUser(req.Token); err != nil {
 		respondServiceError(ctx, "userController: activateUser", err)
 		return
 	}
@@ -66,19 +92,16 @@ func (c *AuthController) register(ctx *gin.Context) {
 		return
 	}
 
-	_, err := c.servcie.Auth(req)
+	context := ctx.Request.Context()
+	_, err := c.service.Auth(context, req)
 
 	if err != nil {
 		respondServiceError(ctx, "user controller", err)
 		return
 	}
 
-	resp := AuthResDto{
-		Message: "На вашу почту было отправена ссылка для подтверждения. Подтвердите вашу почту в течение 24 часов.",
-	}
-
-	ctx.JSON(http.StatusCreated, gin.H{
-		"data": resp,
+	ctx.JSON(http.StatusOK, gin.H{
+		"data": verificationEmailSendDto,
 	})
 }
 

@@ -21,9 +21,13 @@ type VerificationToken struct {
 	UsedAt    *time.Time
 }
 
+type EmailDto struct {
+	Email    string `json:"email" binding:"required,email"`
+}
+
 type AuthReqDto struct {
 	Password string `json:"password" binding:"required,min=3,max=25"`
-	Email    string `json:"email" binding:"required,email"`
+	EmailDto
 }
 
 type AuthResDto struct {
@@ -67,4 +71,7 @@ var (
 	ErrVerificationTokenInvalid = &HTTPErr{Message: "Ссылка для подтверждения email не действительна", Status: http.StatusGone}
 	ErrMailQueueFull            = &HTTPErr{Message: "Сервис отправки писем перегружен. Попробуйте позже", Status: http.StatusServiceUnavailable}
 	ErrMailQueueClosed          = &HTTPErr{Message: "Сервис временно не доступен. Попробуйте позже", Status: http.StatusServiceUnavailable}
+	ErrEmailVerified = &HTTPErr{Message: "Email уже подтверждён", Status: http.StatusConflict}
 )
+
+var verificationEmailSendDto = AuthResDto{Message: "На вашу почту было отправена ссылка для подтверждения. Подтвердите вашу почту в течение 24 часов."}

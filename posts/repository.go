@@ -24,6 +24,7 @@ func (r *PostRepository) CreatePost(ctx context.Context, postDTO CreatePostDto) 
 	newPost := models.Post{
 		Title: postDTO.Title,
 		Body:  postDTO.Body,
+		AuthorID: postDTO.AuthorId,
 	}
 
 	result := r.DB.
