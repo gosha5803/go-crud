@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/gosha5803/go-crud/user"
+	"github.com/jackc/pgx/v5/pgconn"
 	"golang.org/x/crypto/bcrypt"
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
@@ -110,16 +111,17 @@ func (s *AuthService) ActivateUser(verificationToken string) error {
 func (s *AuthService) Auth(ctx context.Context, dto AuthReqDto) (user.User, error) {
 	// TODO где-то я подменяю обраение к модели напрямую через обращение к сервису, но не вот тут, например,
 	// где мне надо вернуть пустого пользака
+	op := "AuthService.Auth"
 	_, err := s.userService.FindUserByEmail(ctx, dto.Email)
 
 	if err != nil {
 		if !errors.Is(err, user.ErrUserNotFound) {
-			return user.User{}, fmt.Errorf("AuthService: Auth: %w", err)
+			return user.User{}, fmt.Errorf("%s: %w",op, err)
 		}
 	}
 
 	if err == nil {
-		return user.User{}, fmt.Errorf("AuthService: Auth: %w", ErrEmailAlreadyUsed)
+		return user.User{}, fmt.Errorf("%s: %w",op, ErrEmailAlreadyUsed)
 	}
 
 	hashedPassword, err := bcrypt.GenerateFromPassword(
@@ -129,13 +131,19 @@ func (s *AuthService) Auth(ctx context.Context, dto AuthReqDto) (user.User, erro
 
 	if err != nil {
 		// TODO можно сделать метод, getEmptyUser, чтобы вообще не зтянуть модель, попробую
-		return user.User{}, fmt.Errorf("AuthService: Auth: %w", err)
+		return user.User{}, fmt.Errorf("%s: %w",op, err)
 	}
 
 	createdUser, createUserErr := s.userService.CreateUser(dto.Email, string(hashedPassword))
 
 	if createUserErr != nil {
-		return user.User{}, fmt.Errorf("AuthService: Auth: %w", createUserErr)
+		var pgErr *pgconn.PgError
+
+		if errors.As(err, &pgErr) && pgErr.Code == "23505" {
+			return user.User{}, fmt.Errorf("%s: %w", op, ErrEmailAlreadyUsed)
+		}
+
+		return user.User{}, fmt.Errorf("%s: %w",op, createUserErr)
 	}
 
 	// TODO gorutine, rabbit + monolith
@@ -148,7 +156,7 @@ func (s *AuthService) Auth(ctx context.Context, dto AuthReqDto) (user.User, erro
 	// пользователь не сможет ни повторно зарегаться по новой email уже есть,
 	// ни получить ссылку
 	if err := s.sendVerificationMail(createdUser.Email, createdUser.ID); err != nil {
-		return user.User{}, fmt.Errorf("AuthService: Auth: %w", err)
+		return user.User{}, fmt.Errorf("%s: %w",op, err)
 	}
 
 	return createdUser, nil

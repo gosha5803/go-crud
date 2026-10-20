@@ -12,7 +12,6 @@ import (
 // TODo по сути все контрллеры должны имплементировать AssignRoutes
 // Либо принимать извне конфиг?
 type IAiChatController interface {
-	askModel(c *gin.Context)
 	AssignRoutes()
 }
 
