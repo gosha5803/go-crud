@@ -2,6 +2,7 @@ package aichat
 
 import (
 	"context"
+	"errors"
 	"iter"
 	"log"
 	"net/http"
@@ -48,6 +49,11 @@ func (controller *ChatController) askModel(c *gin.Context) {
 
 	for resp, err := range stream {
 		if err != nil {
+
+			if errors.Is(err, context.Canceled) {
+				return 
+			}
+
 			log.Printf("controller: askModel: %v", err)
 
 			// TODO унифицировать тип дтошки ошибки
