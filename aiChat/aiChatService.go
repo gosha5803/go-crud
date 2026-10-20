@@ -43,12 +43,10 @@ func (s *AiChatService) AskModelStream(ctx context.Context, prompt string) iter.
 		for resp, err := range s.aiProvider.StreamResponse(ctx, AiModelRequest{Prompt: prompt}) {
 			// если ошибка то надо очистить буфер и вернуть ошибку
 			if err != nil {
-				if ctx.Err() != nil {
-					return 
-				}
-
-				if !emitter.flushAll(true) {
-					return
+				if ctx.Err() == nil {
+					if !emitter.flushAll(true) {
+						return
+					}
 				}
 
 				yield(nil, err)
