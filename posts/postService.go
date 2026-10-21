@@ -81,8 +81,8 @@ func (service *PostService) UpdatePost(ctx context.Context, id uint, post Update
 	op := "PostService.UpdatePost"
 	log := service.log.With(
 		slog.String("op", op),
-		slog.String("postBody", *post.Body),
-		slog.String("postTitle", *post.Title),
+		slog.Any("postBody", *post.Body),
+		slog.Any("postTitle", *post.Title),
 	)
 
 	log.Info("Trying to update a post")

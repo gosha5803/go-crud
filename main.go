@@ -79,6 +79,7 @@ func main() {
 			r, 
 			initializers.DB, 
 			logger,
+			&appCfg.AuthConfig,
 		),
 		health.NewHealthModule(r, initializers.DB),
 	})

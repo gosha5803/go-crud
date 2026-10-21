@@ -51,11 +51,6 @@ type UserActivatedDto struct {
 	Message string `json:"message"`
 }
 
-type AuthConfig struct {
-	VerificationTokenTTL time.Duration
-	BcryptCost           int
-}
-
 type HTTPErr struct {
 	Status  int
 	Message string
@@ -74,6 +69,7 @@ var (
 	ErrEmailVerified = &HTTPErr{Message: "Email уже подтверждён", Status: http.StatusConflict}
 	ErrInvalidCredentials = &HTTPErr{Message: "Неверный логин или пароль", Status: http.StatusBadRequest}
 	ErrUserIsNotActivated = &HTTPErr{Message: "Необходимо подтвердить email", Status: http.StatusForbidden}
+	ErrUnauthorized = &HTTPErr{Message: "Пользователь неавторизован", Status: http.StatusUnauthorized}
 )
 
 var verificationEmailSendDto = AuthResDto{Message: "На вашу почту было отправена ссылка для подтверждения. Подтвердите вашу почту в течение 24 часов."}

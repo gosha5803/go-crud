@@ -30,21 +30,33 @@ type PostController struct {
 	// и неявно реализовываться адаптерами
 	postService IPostService
 	path        string
+	authMW gin.HandlerFunc
 }
 
-func NewPostController(g *gin.Engine, path string, service IPostService) *PostController {
-	return &PostController{g: g, postService: service, path: path}
+func NewPostController(
+	g *gin.Engine, 
+	path string, 
+	service IPostService,
+	authMW gin.HandlerFunc,
+	) *PostController {
+	return &PostController{
+		g: g, 
+		postService: service, 
+		path: path,
+		authMW: authMW,
+	}
 }
 
 func (controller *PostController) AssignRoutes() {
-	post := controller.g.Group(controller.path)
+	prefix := controller.g.Group(controller.path)
+	prefix.Use(controller.authMW)
 	{
-		post.GET("", controller.getPosts)
-		post.POST("", controller.createPost)
-		post.GET("/:id", controller.GetPostByID)
-		post.PATCH("/:id", controller.updatePost)
-		post.DELETE("/:id", controller.deletePost)
-		post.POST("/:id/views", controller.incrementViews)
+		prefix.GET("", controller.getPosts)
+		prefix.POST("", controller.createPost)
+		prefix.GET("/:id", controller.GetPostByID)
+		prefix.PATCH("/:id", controller.updatePost)
+		prefix.DELETE("/:id", controller.deletePost)
+		prefix.POST("/:id/views", controller.incrementViews)
 	}
 }
 
