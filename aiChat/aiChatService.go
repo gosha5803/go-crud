@@ -10,7 +10,6 @@ type AiChatService struct {
 	aiProvider   IAiModelProvider
 	chunkSize    int // целевой размер одного чанка в рунах
 	flushEvery   time.Duration
-	chunkEmitter ChunkEmitter
 }
 
 type IAiModelProvider interface {

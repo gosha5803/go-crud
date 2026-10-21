@@ -8,8 +8,8 @@ import (
 )
 
 func init() {
-	initializers.LoadEnv()
-	initializers.ConnectToDB()
+	cfg := initializers.MustLoadConfig()
+	initializers.ConnectToDB(&cfg.DBConfig)
 }
 
 // stop 12 16

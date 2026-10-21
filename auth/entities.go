@@ -47,15 +47,6 @@ type AuthConfig struct {
 	BcryptCost           int
 }
 
-type MailConfig struct {
-	appHost      string
-	appPort      string
-	mailUserName string
-	mailHost     string
-	mailPassword string
-	mailPort     int
-}
-
 type HTTPErr struct {
 	Status  int
 	Message string

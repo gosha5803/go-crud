@@ -52,6 +52,16 @@ func (r *PostRepository) GetPosts(ctx context.Context) ([]models.Post, error) {
 	return posts, nil
 }
 
+// "ID": 10,
+//         "CreatedAt": "2026-10-20T17:57:38.154636+03:00",
+//         "UpdatedAt": "2026-10-20T17:57:38.154636+03:00",
+//         "DeletedAt": null,
+//         "title": "Первый пост пользователя (6)",
+//         "body": "Тело поста 1 (id = 9) пользователя (6)",
+//         "AuthorID": 6,
+//         "views": 0,
+// TODO при чтении постов, не все поля надо возвращать
+// Наверное для этого нужно DTO слой добавит для овтетов)
 func (r *PostRepository) GetPostById(ctx context.Context, postID uint) (models.Post, error) {
 	op := "PostRepository.GetPostById"
 	var post models.Post

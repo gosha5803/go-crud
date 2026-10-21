@@ -11,6 +11,7 @@ import (
 	"log"
 	"time"
 
+	"github.com/gosha5803/go-crud/initializers"
 	"github.com/gosha5803/go-crud/user"
 	"github.com/jackc/pgx/v5/pgconn"
 	"golang.org/x/crypto/bcrypt"
@@ -31,11 +32,17 @@ type IUserService interface {
 type AuthService struct {
 	DB          *gorm.DB
 	mailQueue   IMailService
-	authConfig  AuthConfig
+	authConfig  *initializers.AuthConfig
 	userService IUserService
 }
 
-func NewAuthService(DB *gorm.DB, mailQueue IMailService, authCfg AuthConfig, userService IUserService) *AuthService {
+func NewAuthService(
+		DB *gorm.DB, 
+		mailQueue IMailService, 
+		authCfg *initializers.AuthConfig, 
+		userService IUserService,
+	) *AuthService {
+		
 	return &AuthService{
 		DB:          DB,
 		mailQueue:   mailQueue,
@@ -139,7 +146,7 @@ func (s *AuthService) Auth(ctx context.Context, dto AuthReqDto) (user.User, erro
 	if createUserErr != nil {
 		var pgErr *pgconn.PgError
 
-		if errors.As(err, &pgErr) && pgErr.Code == "23505" {
+		if errors.As(createUserErr, &pgErr) && pgErr.Code == "23505" {
 			return user.User{}, fmt.Errorf("%s: %w", op, ErrEmailAlreadyUsed)
 		}
 

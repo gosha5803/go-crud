@@ -21,11 +21,6 @@ import (
 	"github.com/gosha5803/go-crud/posts"
 )
 
-func init() {
-	initializers.LoadEnv()
-	initializers.ConnectToDB()
-}
-
 func runModules(modules []models.Module) {
 	for _, module := range modules {
 		module.Init()
@@ -33,6 +28,11 @@ func runModules(modules []models.Module) {
 }
 
 func main() {
+
+	// TODO нужна какя-то папка с общими сущностями, там размещу тип конфига
+	// Тут его инициализировать и прокинуть в конструктор каждого модуля
+	appCfg := initializers.MustLoadConfig()
+	initializers.ConnectToDB(&appCfg.DBConfig)
 
 	r := gin.Default()
 	r.Use(cors.Default())
@@ -45,7 +45,12 @@ func main() {
 		log.Printf("main: %v", err)
 		return
 	}
-	authModule := auth.NewAuthModule(r, initializers.DB)
+
+	authModule := auth.NewAuthModule(
+		r, 
+		initializers.DB, 
+		appCfg, 
+	)
 
 	runModules([]models.Module{
 		authModule,
@@ -54,9 +59,8 @@ func main() {
 		health.NewHealthModule(r, initializers.DB),
 	})
 
-	appPort := os.Getenv("APP_PORT")
 	srv := &http.Server{
-		Addr:    fmt.Sprintf(":%s", appPort),
+		Addr:    fmt.Sprintf(":%d", appCfg.ApplicationConfig.AppPort),
 		Handler: r,
 	}
 
@@ -77,7 +81,19 @@ func main() {
 	defer cancel()
 	
 	// Ждёт либо таймаута 10 - секунд либо, закрытия всех http запросов
-	srv.Shutdown(shutDownCtx)
+	if err := srv.Shutdown(shutDownCtx); err != nil {
+		log.Printf("main: server shutdown: %v", err)
+
+		if errors.Is(err, context.DeadlineExceeded) {
+			log.Printf("main: not all connections finished in time, forcing close")
+		}
+
+		// Shutdown по таймауту соединения не закрывает, их добивает Close
+		if closeErr := srv.Close(); closeErr != nil {
+			log.Printf("main: server close: %v", closeErr)
+		}
+	}
+
 	if err := authModule.Close(shutDownCtx); err != nil {
 		log.Fatalf("main: %v", err)
 	}

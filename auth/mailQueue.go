@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"sync"
 	"time"
+
+	"github.com/gosha5803/go-crud/initializers"
 )
 
 type MailSender interface {
@@ -15,15 +17,10 @@ type MailJob struct {
 	Token, To string
 }
 
-type MailQueueConfig struct {
-	Workers, Retries, QueueSize int
-	RetryDelay, MaxDelay        time.Duration
-}
-
 // не надо ли называть этот как провайде, адаптер? Более дженерик
 type MailQueue struct {
 	sender MailSender
-	cfg    MailQueueConfig
+	cfg    *initializers.MailQueueConfig
 	jobs   chan MailJob
 	wg     sync.WaitGroup
 	// Не факто что накладные расходы дают выигрыш при малых колиествах читателей
@@ -33,7 +30,10 @@ type MailQueue struct {
 	cancel context.CancelFunc
 }
 
-func NewMailQueue(cfg MailQueueConfig, sender MailSender) *MailQueue {
+func NewMailQueue(
+	cfg *initializers.MailQueueConfig, 
+	sender MailSender,
+	) *MailQueue {
 	// Когда вызывается Close канал закрывается, туда ничего не кладётся, но воркеры выполняют джобы полноценно
 	// Когда контекст закрывается, воркеры в ожидании возвращаются через case, разбирают всё быстро через return.
 	// Но сейчас у нас при вызове close передаётся контекст приложения который закрывается по сигналу от os,
@@ -44,7 +44,7 @@ func NewMailQueue(cfg MailQueueConfig, sender MailSender) *MailQueue {
 
 	q := &MailQueue{
 		cfg:    cfg,
-		jobs:   make(chan MailJob, cfg.QueueSize),
+		jobs:   make(chan MailJob, cfg.MQQueueSize),
 		ctx:    newCtx,
 		sender: sender,
 		cancel: cancel,
@@ -52,7 +52,7 @@ func NewMailQueue(cfg MailQueueConfig, sender MailSender) *MailQueue {
 		// Типо WaitGroup, closed и так далее
 	}
 
-	for i := 0; i < cfg.Workers; i++ {
+	for i := 0; i < cfg.MQWorkers; i++ {
 		q.wg.Add(1)
 		go q.worker(i + 1)
 	}
@@ -145,7 +145,7 @@ func (q *MailQueue) handleJob(job MailJob) error {
 		return fmt.Errorf("MailQueue: handleJob: to: %s: %w", job.To, q.ctx.Err())
 	}
 
-	for attempt := 1; attempt <= q.cfg.Retries; attempt++ {
+	for attempt := 1; attempt <= q.cfg.MQAttempts; attempt++ {
 		err := q.sender.SendVerificationMail(job.To, job.Token)
 
 		if err == nil {
@@ -153,8 +153,11 @@ func (q *MailQueue) handleJob(job MailJob) error {
 		}
 
 		// TODO jitter: разброс в пределах половины задержки
-		if attempt < q.cfg.Retries {
-			delay := min(q.cfg.MaxDelay, q.cfg.RetryDelay<<attempt)
+		if attempt < q.cfg.MQAttempts {
+			delay := min(
+				q.cfg.MQMaxRetryDelay, 
+				q.cfg.MQBaseBackoff << attempt,
+			)
 
 			select {
 			case <-time.After(delay):
@@ -169,7 +172,7 @@ func (q *MailQueue) handleJob(job MailJob) error {
 		return fmt.Errorf(
 			"MailQueue: handleJob: to: %s: after %d retries: %w",
 			job.To,
-			q.cfg.Retries,
+			q.cfg.MQAttempts,
 			err,
 		)
 	}

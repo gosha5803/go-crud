@@ -70,7 +70,7 @@ func (p *MockProvider) StreamResponse(ctx context.Context, req AiModelRequest) i
 			select {
 				// Добавил отмену мокового провайдера по контексту
 			case <- ctx.Done():
-				yield(&AiModelResponse{IsFinal: true}, nil)
+				yield(&AiModelResponse{}, ctx.Err())
 				return 
 			case <- time.After(100 * time.Millisecond):
 				resp := &AiModelResponse{Text: m.Message.Text}

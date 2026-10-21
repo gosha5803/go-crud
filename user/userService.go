@@ -8,10 +8,6 @@ import (
 	"gorm.io/gorm"
 )
 
-type IMailService interface {
-	SendVerificationMail(string, string)
-}
-
 type UserService struct {
 	DB *gorm.DB
 }

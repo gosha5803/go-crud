@@ -3,8 +3,6 @@ package initializers
 import (
 	"database/sql"
 	"fmt"
-	"os"
-	"time"
 
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
@@ -12,16 +10,15 @@ import (
 
 var DB *gorm.DB
 
-func ConnectToDB() {
+func ConnectToDB(dbConfig *DBConfig) {
 	var err error
 
 	dsn := fmt.Sprintf(
 		"host=localhost port=%s user=%s password=%s dbname=%s sslmode=disable",
-		// TODO валидация .env. Создание конфиг сервиса
-		os.Getenv("POSTGRES_PORT"),
-		os.Getenv("POSTGRES_USER"),
-		os.Getenv("POSTGRES_PASSWORD"),
-		os.Getenv("POSTGRES_DB"),
+		dbConfig.DBPort,
+		dbConfig.DBUser,
+		dbConfig.DBPassword,
+		dbConfig.DBName,
 	)
 
 	DB, err = gorm.Open(postgres.Open(dsn), &gorm.Config{})
@@ -32,17 +29,14 @@ func ConnectToDB() {
 
 	sqlDB := GetPlainPool()
 
-	// TODO конфиг сервис
-	// В тестах, можно поднять БД, с малым количеством соединений и посмотреть как растут ожидающие воркеры в очереди
-	sqlDB.SetMaxOpenConns(15)
-	sqlDB.SetMaxIdleConns(8)
-	sqlDB.SetConnMaxIdleTime(10 * time.Minute)
-	sqlDB.SetConnMaxLifetime(20 * time.Minute)
-
+	sqlDB.SetMaxOpenConns(dbConfig.DBMaxOpenConns)
+	sqlDB.SetMaxIdleConns(dbConfig.DBMaxIdleConns)
+	sqlDB.SetConnMaxIdleTime(dbConfig.DBConnIdleTime)
+	sqlDB.SetConnMaxLifetime(dbConfig.DBConnIdleTime)
 }
 
 func GetPlainPool() *sql.DB {
-		sqlDB, sqlSwitchErr := DB.DB()
+	sqlDB, sqlSwitchErr := DB.DB()
 
 	if sqlSwitchErr != nil {
 		panic("failed to set connections settings")
