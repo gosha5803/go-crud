@@ -2,21 +2,40 @@ package auth
 
 import (
 	"fmt"
+	"log/slog"
 
 	"github.com/gosha5803/go-crud/initializers"
+	"github.com/gosha5803/go-crud/lib/logger/sl"
 	"gopkg.in/gomail.v2"
 )
 
 type MailService struct {
 	applicationConfig *initializers.ApplicationConfig
 	SMTPConfig *initializers.SMTPConfig
+	log *slog.Logger
 }
 
-func NewMailService(applicationConfig *initializers.ApplicationConfig, SMTPConfig *initializers.SMTPConfig) *MailService {
-	return &MailService{applicationConfig: applicationConfig, SMTPConfig: SMTPConfig}
+func NewMailService(
+	applicationConfig *initializers.ApplicationConfig, 
+	SMTPConfig *initializers.SMTPConfig,
+	log *slog.Logger,
+	) *MailService {
+	return &MailService{
+		applicationConfig: applicationConfig, 
+		SMTPConfig: SMTPConfig, 
+		log: log,
+	}
 }
 
 func (s *MailService) SendVerificationMail(emailTo string, verificationToken string) error {
+	op := "MailService.SendVerificationMail"
+	log := s.log.With(
+		slog.String("op", op),
+		slog.String("emailTo", emailTo),
+	)
+
+	log.Info("Sending verification mail")
+
 	// 1. Формируем ссылку с токеном
 	activateURL := fmt.Sprintf(
 		"%s:%d/auth/activate?token=%s",
@@ -46,9 +65,11 @@ func (s *MailService) SendVerificationMail(emailTo string, verificationToken str
 	// TODO TODO: при росте нагрузки — outbox-таблица + воркер, rabbit, gorutine?
 	// Контекст для прерывания сюда не передать.
 	if err := d.DialAndSend(m); err != nil {
+		log.Error("Failed to send verification mail", sl.Err(err))
 		return fmt.Errorf("mailService: SendVerificationMail: %w", err)
 	}
-
+	
+	log.Info("Verification Mail succesfully sended")
 	return nil
 }
 

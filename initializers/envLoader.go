@@ -46,12 +46,19 @@ type AuthConfig struct {
 	BcryptCost int `envconfig:"BCRYPT_COST" default:"10"`
 }
 
+type AiConfig struct {
+	GeminiApiKey string `envconfig:"GEMINI_API_KEY" required:"true"`
+}
+
 type AppConfig struct {
 	DBConfig DBConfig
 	SMTPConfig SMTPConfig
 	ApplicationConfig ApplicationConfig
 	MailQueueConfig MailQueueConfig
 	AuthConfig AuthConfig
+	AiConfig AiConfig
+	// TODO можно ли типизировать енамом
+	Enviroment string `envconfig:"ENVIROMENT" required:"true"`
 }
 
 func MustLoadConfig() *AppConfig {

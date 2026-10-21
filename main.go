@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"log/slog"
 	"net/http"
 	"os"
 	"os/signal"
@@ -27,12 +28,30 @@ func runModules(modules []models.Module) {
 	}
 }
 
+func NewLogger(env string) *slog.Logger {
+	var logger *slog.Logger
+
+	switch env {
+	case "local":
+		logger = slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelDebug}))
+	case "stand":
+		logger = slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelDebug}))
+	case "prod":
+		logger = slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelInfo}))
+	default:
+		logger = slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelInfo}))
+	}
+
+	return logger
+}
+
 func main() {
 
 	// TODO нужна какя-то папка с общими сущностями, там размещу тип конфига
 	// Тут его инициализировать и прокинуть в конструктор каждого модуля
 	appCfg := initializers.MustLoadConfig()
 	initializers.ConnectToDB(&appCfg.DBConfig)
+	logger := NewLogger(appCfg.Enviroment)
 
 	r := gin.Default()
 	r.Use(cors.Default())
@@ -40,7 +59,7 @@ func main() {
 	// Нет, отмена этого контекста просто запускает закрытие очереди и сервера
 	appCtx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 
-	aiChatModule, err := aichat.NewAiChatModule(appCtx, r)
+	aiChatModule, err := aichat.NewAiChatModule(appCtx, r, appCfg.AiConfig)
 	if err != nil {
 		log.Printf("main: %v", err)
 		return
@@ -50,12 +69,17 @@ func main() {
 		r, 
 		initializers.DB, 
 		appCfg, 
+		logger,
 	)
 
 	runModules([]models.Module{
 		authModule,
 		aiChatModule,
-		posts.NewPostModule(r, initializers.DB),
+		posts.NewPostModule(
+			r, 
+			initializers.DB, 
+			logger,
+		),
 		health.NewHealthModule(r, initializers.DB),
 	})
 

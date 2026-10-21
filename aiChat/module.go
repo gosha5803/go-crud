@@ -3,10 +3,10 @@ package aichat
 import (
 	"context"
 	"fmt"
-	"os"
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/gosha5803/go-crud/initializers"
 )
 
 // TODo по сути все контрллеры должны имплементировать AssignRoutes
@@ -19,12 +19,9 @@ type AiChatModule struct {
 	controller IAiChatController
 }
 
-func NewAiChatModule(ctx context.Context, engine *gin.Engine) (*AiChatModule, error) {
-	// TODO тут нужен конфиг сервис
-	apiKey := os.Getenv("GEMINI_API_KEY")
-
+func NewAiChatModule(ctx context.Context, engine *gin.Engine, aiConfig initializers.AiConfig) (*AiChatModule, error) {
 	// TODO простота использования, просто тут поменяли два параметра в фабрике и переключились на другую модель
-	aiClient, err := NewAiProvider(ctx, ProviderConfig{Kind: ProviderGemini, APIKey: apiKey})
+	aiClient, err := NewAiProvider(ctx, ProviderConfig{Kind: ProviderGemini, APIKey: aiConfig.GeminiApiKey})
 
 	if err != nil {
 		return nil, fmt.Errorf("new ai chat module: %w", err)

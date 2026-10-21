@@ -14,7 +14,7 @@ import (
 
 
 type IAuthService interface {
-	Auth(context.Context, AuthReqDto) (user.User, error)
+	Auth(context.Context, string, string) (user.User, error)
 	ActivateUser(string) error
 	// Метод сервиса уже не должен на DTO быть завязан, так как транспорт может быть разный
 	RetryEmailVerification(context.Context, string) error
@@ -93,7 +93,7 @@ func (c *AuthController) register(ctx *gin.Context) {
 	}
 
 	context := ctx.Request.Context()
-	_, err := c.service.Auth(context, req)
+	_, err := c.service.Auth(context, req.Email, req.Password)
 
 	if err != nil {
 		respondServiceError(ctx, "user controller", err)
