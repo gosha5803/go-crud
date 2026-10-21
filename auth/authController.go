@@ -15,6 +15,7 @@ import (
 
 type IAuthService interface {
 	Auth(context.Context, string, string) (user.User, error)
+	Login(context.Context, string, string) (string, error)
 	ActivateUser(string) error
 	// Метод сервиса уже не должен на DTO быть завязан, так как транспорт может быть разный
 	RetryEmailVerification(context.Context, string) error
@@ -36,9 +37,28 @@ func (c *AuthController) AssignRoutes() {
 	preffix.POST("/register", c.register)
 	preffix.GET("/activate", c.activateUser)
 	preffix.POST("/retry-email-verification", c.retryEmailVerification)
+	preffix.POST("/login", c.login)
 }
 
-// start 11 45
+func (c *AuthController) login(ctx *gin.Context) {
+	op := "AuthController.login"
+	var authDto LoginReqDto
+
+	if err := ctx.ShouldBindJSON(&authDto); err != nil {
+		respondValidationError(ctx, op, err)
+		return
+	}
+
+	context := ctx.Request.Context()
+	token, err := c.service.Login(context, authDto.Email, authDto.Password)
+
+	if err != nil {
+		respondServiceError(ctx, op, err)
+		return
+	}
+
+	ctx.JSON(http.StatusOK, LoginResDto{AccessToken: token})
+}
 
 func (c *AuthController) retryEmailVerification(ctx *gin.Context) {
 	op := "AuthController.retryEmailVerification"

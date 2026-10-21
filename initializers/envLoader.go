@@ -44,6 +44,8 @@ type MailQueueConfig struct {
 type AuthConfig struct {
 	VerificationTokenTTL time.Duration `envconfig:"VERIFICATION_TOKEN_TTL" default:"1h"`
 	BcryptCost int `envconfig:"BCRYPT_COST" default:"10"`
+	JwtTokenTTL time.Duration `envconfig:"JWT_TOKEN_TTL" default:"6h"`
+	JwtTokenSecret string `envconfig:"JWT_TOKEN_SECRET" required:"true"`
 }
 
 type AiConfig struct {

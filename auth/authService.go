@@ -24,6 +24,10 @@ type IMailService interface {
 	AddVerificationJob(string, string) error
 }
 
+type IJwtService interface {
+	NewToken(user.User) (string, error)
+}
+
 type IUserService interface {
 	SetUserEmailVerified(*gorm.DB, uint, bool) error
 	FindUserByEmail(context.Context, string) (user.User, error)
@@ -36,6 +40,7 @@ type AuthService struct {
 	mailQueue   IMailService
 	authConfig  *initializers.AuthConfig
 	userService IUserService
+	jwtService IJwtService
 }
 
 func NewAuthService(
@@ -44,6 +49,7 @@ func NewAuthService(
 		authCfg *initializers.AuthConfig, 
 		userService IUserService,
 		log *slog.Logger,
+		jwtService IJwtService,
 	) *AuthService {
 		
 	return &AuthService{
@@ -52,7 +58,60 @@ func NewAuthService(
 		authConfig:  authCfg,
 		userService: userService,
 		log: log,
+		jwtService: jwtService,
 	}
+}
+
+func (s *AuthService) Login(
+	ctx context.Context, 
+	email string, 
+	password string,
+	) (string, error) {
+	op := "AuthService.Login"
+	log := s.log.With(
+		slog.String("op", op),
+		slog.String("email", email),
+	)
+	log.Info("Trying ro login user")
+	
+	existingUser, err := s.userService.FindUserByEmail(ctx, email)
+
+	if err != nil {
+		log.Error("Failed to find user by email", sl.Err(err))
+		
+		if errors.Is(err, user.ErrUserNotFound) {
+			return "", fmt.Errorf("%s, %w", op, ErrInvalidCredentials)
+		}
+		
+		return "", fmt.Errorf("%s, %w", op, err)
+	}
+	
+	if !existingUser.EmailVerified {
+		log.Error("Failed to login user who is not verified", sl.Err(ErrUserIsNotActivated))
+		return "", fmt.Errorf("%s, %w", op, ErrUserIsNotActivated)
+	}
+
+	// TODO брутфорс
+	if err := s.comparePassword([]byte(existingUser.Password), []byte(password)); err != nil {
+		if errors.Is(err, bcrypt.ErrMismatchedHashAndPassword) {
+			log.Error("Wrong password", sl.Err(err))
+			return "", fmt.Errorf("%s, %w", op, ErrInvalidCredentials)
+		}
+
+		log.Error("Password check failed", sl.Err(err))
+		return "", fmt.Errorf("%s, %w", op, err)
+	}
+	
+	jwtToken, err := s.jwtService.NewToken(existingUser)
+	
+	if err != nil {
+		log.Error("Failed to produce JWT", sl.Err(err))
+		return "", fmt.Errorf("%s, %w", op, err)
+	}
+	
+	log.Info("Jwt token succesfully created")
+
+	return jwtToken, nil
 }
 
 func (s *AuthService) RetryEmailVerification(ctx context.Context, email string) error {
@@ -284,4 +343,19 @@ func (s *AuthService) createVerificationToken() (string, error) {
 	}
 
 	return base64.RawURLEncoding.EncodeToString(b), nil
+}
+
+func (s *AuthService) comparePassword(hashedPassword []byte, password []byte) error {
+	op := "AuthService.comparePassword"
+	log := s.log.With(
+		slog.String("op", op),
+	)
+	log.Info("Comparing password with hash")
+	
+	if err := bcrypt.CompareHashAndPassword(hashedPassword, password); err != nil {
+		log.Error("Password comparission failed", sl.Err(err))
+		return fmt.Errorf("%s, %w", op, err)
+	}
+
+	return nil
 }

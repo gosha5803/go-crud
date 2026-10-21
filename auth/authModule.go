@@ -33,7 +33,7 @@ func NewAuthModule(
 
 	// TODO userService пока не нужен контроллер и модуль свой и репы нет, пока его прям тут инстанциирую и внедрю
 	userService := user.NewUserService(DB)
-
+	jwtService := NewJwtSevice(&appConfig.AuthConfig)
 	mailQueue := NewMailQueue(&appConfig.MailQueueConfig, mailService)
 
 	authService := NewAuthService(
@@ -42,6 +42,7 @@ func NewAuthModule(
 		&appConfig.AuthConfig, 
 		userService, 
 		log,
+		jwtService,
 	)
 	authController := NewAuthController(g, "/auth", authService)
 

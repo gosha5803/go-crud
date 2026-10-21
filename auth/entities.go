@@ -25,6 +25,15 @@ type EmailDto struct {
 	Email    string `json:"email" binding:"required,email"`
 }
 
+type LoginReqDto struct {
+	EmailDto
+	Password string `json:"password" binding:"required"`
+}
+
+type LoginResDto struct {
+	AccessToken string `json:"accessToken"`
+}
+
 type AuthReqDto struct {
 	Password string `json:"password" binding:"required,min=3,max=25"`
 	EmailDto
@@ -63,6 +72,8 @@ var (
 	ErrMailQueueFull            = &HTTPErr{Message: "Сервис отправки писем перегружен. Попробуйте позже", Status: http.StatusServiceUnavailable}
 	ErrMailQueueClosed          = &HTTPErr{Message: "Сервис временно не доступен. Попробуйте позже", Status: http.StatusServiceUnavailable}
 	ErrEmailVerified = &HTTPErr{Message: "Email уже подтверждён", Status: http.StatusConflict}
+	ErrInvalidCredentials = &HTTPErr{Message: "Неверный логин или пароль", Status: http.StatusBadRequest}
+	ErrUserIsNotActivated = &HTTPErr{Message: "Необходимо подтвердить email", Status: http.StatusForbidden}
 )
 
 var verificationEmailSendDto = AuthResDto{Message: "На вашу почту было отправена ссылка для подтверждения. Подтвердите вашу почту в течение 24 часов."}
