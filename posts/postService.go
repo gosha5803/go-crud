@@ -40,7 +40,7 @@ func (service *PostService) IncrementViews(ctx context.Context, postId uint)(mod
 
 func (service *PostService) CreatePost(
 	ctx context.Context, 
-	postBody string, 
+	postBody, 
 	postTitle string,
 	userId uint,
 	) (models.Post, error) {
@@ -98,7 +98,7 @@ func (service *PostService) UpdatePost(ctx context.Context, id uint, post Update
 
 	log.Info("Trying to update a post")
 
-	return service.repo.UpdatePost(ctx,id, post)
+	return service.repo.UpdatePost(ctx, id, post)
 }
 
 func (service *PostService) DeletePost(ctx context.Context, id uint) (error) {

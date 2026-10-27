@@ -78,7 +78,7 @@ func LoadEnv() (*AppConfig, error) {
 	err := godotenv.Load()
 
 	if err != nil {
-		return &AppConfig{}, fmt.Errorf("error while loading env: %w", err)
+		return nil, fmt.Errorf("error while loading env: %w", err)
 	}
 
 	var cfg AppConfig

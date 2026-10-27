@@ -2,6 +2,7 @@ package auth
 
 import (
 	"log/slog"
+	"strconv"
 	"strings"
 
 	"github.com/gin-gonic/gin"
@@ -43,14 +44,29 @@ func AuthMiddleware(secret []byte, log *slog.Logger) gin.HandlerFunc {
 			return 
 		}
 
-		claims, ok := token.Claims.(JwtClaims)
+		claims, ok := token.Claims.(*JwtClaims)
 		
 		if !ok {
+			log.Warn("missing jwt claims",
+				slog.String("path", ctx.Request.URL.Path),
+				slog.String("ip", ctx.ClientIP()),
+			)
 			ctx.AbortWithStatusJSON(ErrUnauthorized.Status, ErrUnauthorized)
 			return 
 		}
 
-		ctx.Set(UserIdKey, claims.Subject)
+		userId, err := strconv.ParseUint(claims.Subject, 10, 0) 
+	
+		if err != nil {
+			log.Warn("failed to convert jwt sub",
+				slog.String("path", ctx.Request.URL.Path),
+				slog.String("ip", ctx.ClientIP()),
+			)
+			ctx.AbortWithStatusJSON(ErrUnauthorized.Status, ErrUnauthorized)
+			return 
+		}
+
+		ctx.Set(UserIdKey, uint(userId))
 		ctx.Next()
 	}
 }
