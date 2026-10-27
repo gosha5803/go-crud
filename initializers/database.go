@@ -32,7 +32,7 @@ func ConnectToDB(dbConfig *DBConfig) {
 	sqlDB.SetMaxOpenConns(dbConfig.DBMaxOpenConns)
 	sqlDB.SetMaxIdleConns(dbConfig.DBMaxIdleConns)
 	sqlDB.SetConnMaxIdleTime(dbConfig.DBConnIdleTime)
-	sqlDB.SetConnMaxLifetime(dbConfig.DBConnIdleTime)
+	sqlDB.SetConnMaxLifetime(dbConfig.DBConnLifetime)
 }
 
 func GetPlainPool() *sql.DB {

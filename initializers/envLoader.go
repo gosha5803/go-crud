@@ -1,6 +1,7 @@
 package initializers
 
 import (
+	"fmt"
 	"log"
 	"time"
 
@@ -62,7 +63,7 @@ type AppConfig struct {
 	// TODO можно ли типизировать енамом
 	Enviroment string `envconfig:"ENVIROMENT" required:"true"`
 }
-
+// TODO как прокидывать такие переменные через докер? 
 func MustLoadConfig() *AppConfig {
 	cfg, err := LoadEnv()
 
@@ -77,7 +78,7 @@ func LoadEnv() (*AppConfig, error) {
 	err := godotenv.Load()
 
 	if err != nil {
-		log.Fatal("Error loading .env file")
+		return &AppConfig{}, fmt.Errorf("error while loading env: %w", err)
 	}
 
 	var cfg AppConfig

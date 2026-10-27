@@ -7,8 +7,6 @@ import (
 type CreatePostDto struct {
 	Title string `json:"title" binding:"required,min=3,max=255"`
 	Body  string `json:"body" binding:"omitempty,max=10000"`
-	// Теперь при создани поста обязателен айди автора, при этом при редактировании он недоступен
-	AuthorId uint `json:"authorId" binding:"required"`
 }
 
 type UpdatePostDto struct {

@@ -18,13 +18,18 @@ func NewPostRepository(DB *gorm.DB) *PostRepository {
 	return &PostRepository{DB: DB}
 }
 
-func (r *PostRepository) CreatePost(ctx context.Context, postDTO CreatePostDto) (models.Post, error) {
+func (r *PostRepository) CreatePost(
+	ctx context.Context, 
+	postBody, 
+	postTitle string,
+	userId uint,
+) (models.Post, error) {
 	op := "PostRepository.CreatePost"
 
 	newPost := models.Post{
-		Title: postDTO.Title,
-		Body:  postDTO.Body,
-		AuthorID: postDTO.AuthorId,
+		Title: postTitle,
+		Body:  postBody,
+		AuthorID: userId,
 	}
 
 	result := r.DB.

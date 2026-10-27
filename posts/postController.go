@@ -7,13 +7,14 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
+	"github.com/gosha5803/go-crud/auth"
 	"github.com/gosha5803/go-crud/initializers"
 	"github.com/gosha5803/go-crud/models"
 )
 
 // Go-сообщество склоняется к тому, что интерфейс должен объявляться там, где он потребляется, а не там, где реализуется.
 type IPostService interface {
-	CreatePost(context.Context, CreatePostDto) (models.Post, error)
+	CreatePost(context.Context, string, string, uint) (models.Post, error)
 	GetPosts(context.Context) ([]models.Post, error)
 	GetPostById(context.Context,uint) (models.Post, error)
 	UpdatePost(context.Context,uint, UpdatePostDto) (models.Post, error)
@@ -123,6 +124,19 @@ func (controller *PostController) GetPostByID(c *gin.Context) {
 func (controller *PostController) createPost(c *gin.Context) {
 	var body CreatePostDto
 	op := "createPost"
+	value, idExtractErr := c.Get(auth.UserIdKey)
+
+	if !idExtractErr {
+		respondServiceError(c, op, auth.ErrUnauthorized)
+		return
+	}
+	
+	userId, ok := value.(uint) 
+	
+	if !ok {
+		respondServiceError(c, op, auth.ErrUnauthorized)
+		return
+	}
 
 	// c.Bind` сам пишет 400 и игнорирует ошибку в твоём коде
 	// c.ShouldBindJSON - тут отлавливается связь с required gin
@@ -133,7 +147,12 @@ func (controller *PostController) createPost(c *gin.Context) {
 	}
 
 	ctx := c.Request.Context()
-	post, err := controller.postService.CreatePost(ctx, body)
+	post, err := controller.postService.CreatePost(
+		ctx,
+		body.Body,
+		body.Title,
+		userId,
+	)
 	
 	if err != nil {
 		respondServiceError(c, op, err)

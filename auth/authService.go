@@ -237,7 +237,7 @@ func (s *AuthService) Auth(ctx context.Context, email string, password string) (
 
 	if createUserErr != nil {
 		var pgErr *pgconn.PgError
-		log.Error("failed to save user", sl.Err(err))
+		log.Error("failed to save user", sl.Err(createUserErr))
 		
 		if errors.As(createUserErr, &pgErr) && pgErr.Code == "23505" {
 			return user.User{}, fmt.Errorf("%s: %w", op, ErrEmailAlreadyUsed)

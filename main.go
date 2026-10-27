@@ -46,7 +46,6 @@ func NewLogger(env string) *slog.Logger {
 }
 
 func main() {
-
 	// TODO нужна какя-то папка с общими сущностями, там размещу тип конфига
 	// Тут его инициализировать и прокинуть в конструктор каждого модуля
 	appCfg := initializers.MustLoadConfig()
@@ -127,7 +126,6 @@ func main() {
 	if err := plainPool.Close(); err != nil {
 		log.Fatalf("main: %v", err)
 	}
-
 }
 
 /*

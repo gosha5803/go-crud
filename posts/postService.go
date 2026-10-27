@@ -8,7 +8,7 @@ import (
 )
 
 type IPostRepository interface {
-	CreatePost(context.Context, CreatePostDto) (models.Post, error)
+	CreatePost(context.Context, string, string, uint) (models.Post, error)
 	GetPostById(context.Context,uint) (models.Post, error)
 	GetPosts(context.Context) ( []models.Post, error)
 	UpdatePost(context.Context,uint, UpdatePostDto) (models.Post, error)
@@ -38,18 +38,28 @@ func (service *PostService) IncrementViews(ctx context.Context, postId uint)(mod
 	return service.repo.IncrementViews(ctx, postId)
 }
 
-func (service *PostService) CreatePost(ctx context.Context, postDTO CreatePostDto) (models.Post, error) {
+func (service *PostService) CreatePost(
+	ctx context.Context, 
+	postBody string, 
+	postTitle string,
+	userId uint,
+	) (models.Post, error) {
 	op := "PostService.CreatePost"
 	log := service.log.With(
 		slog.String("op", op),
-		slog.String("postBody", postDTO.Body),
-		slog.String("postTitle", postDTO.Title),
-		slog.Int("postAuthorID", int(postDTO.AuthorId)),
+		slog.String("postBody", postBody),
+		slog.String("postTitle", postTitle),
+		slog.Int("postAuthorID", int(userId)),
 	)
 
 	log.Info("Trying to create a post")
 
-	return service.repo.CreatePost(ctx, postDTO)
+	return service.repo.CreatePost(
+		ctx, 
+		postBody, 
+		postTitle,
+		userId,
+	)
 }
 
 func (service *PostService) GetPosts(ctx context.Context) ([]models.Post, error) {
@@ -81,8 +91,9 @@ func (service *PostService) UpdatePost(ctx context.Context, id uint, post Update
 	op := "PostService.UpdatePost"
 	log := service.log.With(
 		slog.String("op", op),
-		slog.Any("postBody", *post.Body),
-		slog.Any("postTitle", *post.Title),
+		slog.Any("postBody", post.Body),
+		slog.Any("postTitle", post.Title),
+		slog.Any("postId", id),
 	)
 
 	log.Info("Trying to update a post")

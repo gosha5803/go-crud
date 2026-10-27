@@ -9,6 +9,10 @@ import (
 	"github.com/gosha5803/go-crud/user"
 )
 
+type JwtClaims struct {
+	jwt.RegisteredClaims
+}
+
 type JwtService struct {
 	authConfig *initializers.AuthConfig
 }
@@ -21,14 +25,15 @@ func NewJwtSevice(
 
 func (s *JwtService) NewToken(user user.User) (string, error) {
 	op := "JwtService.NewToken"
-	token := jwt.New(jwt.SigningMethodHS256)
+	now := time.Now()
+	claims := JwtClaims{
+		RegisteredClaims: jwt.RegisteredClaims{
+			ExpiresAt: jwt.NewNumericDate(now.Add(s.authConfig.JwtTokenTTL)),
+			Subject: fmt.Sprint(user.ID),
+		},
+	}
 
-	claims := token.Claims.(jwt.MapClaims)
-	claims["userId"] = user.ID
-	claims["email"] = user.Email
-	// Время жизни
-	claims["exp"] = time.Now().Add(s.authConfig.JwtTokenTTL).Unix()
-
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
 	tokenString, err := token.SignedString([]byte(s.authConfig.JwtTokenSecret))
 
 	if err != nil {
