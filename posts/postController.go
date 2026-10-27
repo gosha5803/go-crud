@@ -127,7 +127,9 @@ func (controller *PostController) createPost(c *gin.Context) {
 	userId, extractErr := auth.GetUserIdFromContext(c)
 
 	if extractErr != nil {
-		respondServiceError(c, op, auth.ErrUnauthorized)
+		c.JSON(http.StatusUnauthorized, gin.H{
+			"error": "Unauthorized",
+		})
 		return
 	}
 
@@ -135,9 +137,7 @@ func (controller *PostController) createPost(c *gin.Context) {
 	// c.ShouldBindJSON - тут отлавливается связь с required gin
 	// Понять как он работает и все дела.
 	if err := c.ShouldBindJSON(&body); err != nil {
-		c.JSON(http.StatusUnauthorized, gin.H{
-			"error": "Unauthorized",
-		})
+		respondValidationError(c, op, err)
 		return
 	}
 
