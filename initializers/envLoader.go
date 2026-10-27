@@ -1,7 +1,9 @@
 package initializers
 
 import (
+	"errors"
 	"fmt"
+	"io/fs"
 	"log"
 	"time"
 
@@ -78,7 +80,9 @@ func LoadEnv() (*AppConfig, error) {
 	err := godotenv.Load()
 
 	if err != nil {
-		return nil, fmt.Errorf("error while loading env: %w", err)
+		if errors.Is(err, fs.ErrNotExist) {
+			return nil, fmt.Errorf("error while loading env: %w", err)
+		}
 	}
 
 	var cfg AppConfig

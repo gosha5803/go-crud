@@ -30,6 +30,9 @@ func (s *JwtService) NewToken(user user.User) (string, error) {
 		RegisteredClaims: jwt.RegisteredClaims{
 			ExpiresAt: jwt.NewNumericDate(now.Add(s.authConfig.JwtTokenTTL)),
 			Subject: fmt.Sprint(user.ID),
+			// Так как JWT нельзя отозвать, нам надо как-то разлогинить пользователя после. например смены пароля 
+			// или по кнопке выйти со всех устройств
+			// Это можно сделать за счёт поля Токены выданы после ...
 			IssuedAt: jwt.NewNumericDate(now),
 		},
 	}

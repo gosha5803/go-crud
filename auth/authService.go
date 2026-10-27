@@ -137,10 +137,13 @@ func (s *AuthService) RetryEmailVerification(ctx context.Context, email string) 
 		return fmt.Errorf("%s, %w", op, ErrEmailVerified)
 	}
 
-	return s.sendVerificationMail(existingUser.Email, existingUser.ID)
+	return s.sendVerificationMail(ctx, existingUser.Email, existingUser.ID)
 }
 
-func (s *AuthService) ActivateUser(verificationToken string) error {
+func (s *AuthService) ActivateUser(
+	ctx context.Context, 
+	verificationToken string,
+	) error {
 	op := "AuthService.ActivateUser"
 	log := s.log.With(
 		slog.String("op", op),
@@ -158,7 +161,8 @@ func (s *AuthService) ActivateUser(verificationToken string) error {
 	tokenUpdateErr := s.DB.Transaction(func(tx *gorm.DB) error {
 		var token VerificationToken
 
-		res := tx.Model(&token).
+		res := tx.WithContext(ctx).
+			Model(&token).
 			Clauses(clause.Returning{}).
 			Where("hash = ? AND used_at IS NULL AND expires_at > ?", tokenHash, now).
 			Update("used_at", now)
@@ -257,7 +261,7 @@ func (s *AuthService) Auth(ctx context.Context, email string, password string) (
 	// Или насильно заставляем. Кнопку даём, по которой отправляем письмо.
 	// пользователь не сможет ни повторно зарегаться по новой email уже есть,
 	// ни получить ссылку
-	if err := s.sendVerificationMail(createdUser.Email, createdUser.ID); err != nil {
+	if err := s.sendVerificationMail(ctx, createdUser.Email, createdUser.ID); err != nil {
 		log.Error("failed to send verification mail", sl.Err(err))
 		return user.User{}, fmt.Errorf("%s: %w",op, err)
 	}
@@ -267,7 +271,11 @@ func (s *AuthService) Auth(ctx context.Context, email string, password string) (
 	return createdUser, nil
 }
 
-func (s *AuthService) sendVerificationMail(email string, userID uint) error {
+func (s *AuthService) sendVerificationMail(
+	ctx context.Context, 
+	email string, 
+	userID uint,
+	) error {
 	op := "AuthService.sendVerificationMail"
 	// TODO тут и логика сохранения токена и отправки email
 	// Возможно надо раскидать по методам, а также обеспечить консистентность. Сейчас я просто удалаю токен из БД при ошибке
@@ -296,7 +304,7 @@ func (s *AuthService) sendVerificationMail(email string, userID uint) error {
 		ExpiresAt: time.Now().Add(s.authConfig.VerificationTokenTTL),
 	}
 	
-	if err := s.DB.Create(&tokenModel).Error; err != nil {
+	if err := s.DB.WithContext(ctx).Create(&tokenModel).Error; err != nil {
 		log.Error("Failed to save verification token", sl.Err(err))
 		return fmt.Errorf("AuthService: sendVerificationMail: createToken: %w", err)
 	}
@@ -304,7 +312,7 @@ func (s *AuthService) sendVerificationMail(email string, userID uint) error {
 	if err := s.mailQueue.AddVerificationJob(email, verificationToken); err != nil {
 		log.Error("Failed to add verification job", sl.Err(err))
 
-		if delErr := s.DB.Delete(&tokenModel).Error; delErr != nil {
+		if delErr := s.DB.WithContext(ctx).Delete(&tokenModel).Error; delErr != nil {
 			log.Error("Failed to rollback verification token, after error", sl.Err(delErr))
 		}
 
