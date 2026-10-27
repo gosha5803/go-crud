@@ -11,8 +11,8 @@ type IPostRepository interface {
 	CreatePost(context.Context, string, string, uint) (models.Post, error)
 	GetPostById(context.Context,uint) (models.Post, error)
 	GetPosts(context.Context) ( []models.Post, error)
-	UpdatePost(context.Context,uint, UpdatePostDto) (models.Post, error)
-	DeletePostById(context.Context,uint) error
+	UpdatePost(UpdatePostParams) (models.Post, error)
+	DeletePostById(DeletePostByIDParams) error
 	IncrementViews( context.Context,  uint)(models.Post, error)
 }
 
@@ -73,7 +73,7 @@ func (service *PostService) GetPosts(ctx context.Context) ([]models.Post, error)
 	return service.repo.GetPosts(ctx)
 }
 
-func (service *PostService) GetPostById(ctx context.Context,id uint) (models.Post, error) {
+func (service *PostService) GetPostById(ctx context.Context, id uint) (models.Post, error) {
 	op := "PostService.GetPostById"
 	log := service.log.With(
 		slog.String("op", op),
@@ -87,28 +87,30 @@ func (service *PostService) GetPostById(ctx context.Context,id uint) (models.Pos
 
 // TODO если у нас есть возможность делать, например тело поста - пустой строкой, то тут надо чётко различать, когда пользователь не трогает тело
 // и не хочет его редактировать и когда он пустую строку отправил
-func (service *PostService) UpdatePost(ctx context.Context, id uint, post UpdatePostDto) (models.Post, error) {
+func (service *PostService) UpdatePost(
+	params UpdatePostParams,
+) (models.Post, error) {
 	op := "PostService.UpdatePost"
 	log := service.log.With(
 		slog.String("op", op),
-		slog.Any("postBody", post.Body),
-		slog.Any("postTitle", post.Title),
-		slog.Any("postId", id),
+		slog.Any("postID", params.postID),
+		slog.Any("userID", params.userID),
 	)
 
 	log.Info("Trying to update a post")
 
-	return service.repo.UpdatePost(ctx, id, post)
+	return service.repo.UpdatePost(params)
 }
 
-func (service *PostService) DeletePost(ctx context.Context, id uint) (error) {
+func (service *PostService) DeletePost(params DeletePostByIDParams) (error) {
 	op := "PostService.DeletePost"
 	log := service.log.With(
 		slog.String("op", op),
-		slog.Int("id", int(id)),
+		slog.Int("postID", int(params.postID)),
+		slog.Int("userID", int(params.userID)),
 	)
 
 	log.Info("Trying to delete the post")
 
-	return service.repo.DeletePostById(ctx, id)
+	return service.repo.DeletePostById(params)
 }

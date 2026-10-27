@@ -1,12 +1,24 @@
 package posts
 
 import (
+	"context"
 	"errors"
 )
 
 type CreatePostDto struct {
 	Title string `json:"title" binding:"required,min=3,max=255"`
 	Body  string `json:"body" binding:"omitempty,max=10000"`
+}
+
+type UpdatePostParams struct {
+	ctx context.Context
+	postBody, postTitle *string
+	postID, userID uint
+}
+
+type DeletePostByIDParams struct {
+	postID, userID uint
+	ctx context.Context
 }
 
 type UpdatePostDto struct {

@@ -17,8 +17,8 @@ type IPostService interface {
 	CreatePost(context.Context, string, string, uint) (models.Post, error)
 	GetPosts(context.Context) ([]models.Post, error)
 	GetPostById(context.Context,uint) (models.Post, error)
-	UpdatePost(context.Context,uint, UpdatePostDto) (models.Post, error)
-	DeletePost(context.Context,uint) (error)
+	UpdatePost(UpdatePostParams) (models.Post, error)
+	DeletePost(DeletePostByIDParams) (error)
 	IncrementViews( context.Context,  uint)(models.Post, error)
 }
 
@@ -160,6 +160,15 @@ func (controller *PostController) createPost(c *gin.Context) {
 }
 
 func (controller *PostController) updatePost(c *gin.Context) {
+	userID, err := auth.GetUserIdFromContext(c)
+
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{
+			"error": "Unauthorized",
+		})
+		return
+	}
+
 	// Get id from URL
 	var req PostIdPathParam
 	op := "updatePost"
@@ -178,7 +187,13 @@ func (controller *PostController) updatePost(c *gin.Context) {
 	}
 	
 	ctx := c.Request.Context()
-	post, err := controller.postService.UpdatePost(ctx, req.ID, body)
+	post, err := controller.postService.UpdatePost(UpdatePostParams{
+		ctx: ctx,
+		postBody: body.Body,
+		postTitle: body.Title,
+		postID: req.ID,
+		userID: userID,
+	})
 
 	if err != nil {
 		respondServiceError(c, op, err)
@@ -191,9 +206,17 @@ func (controller *PostController) updatePost(c *gin.Context) {
 }
 
 func (controller *PostController) deletePost(c *gin.Context) {
+	userID, err := auth.GetUserIdFromContext(c)
+
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{
+			"error": "Unauthorized",
+		})
+		return
+	}
 	// Get id from URL
 	var req PostIdPathParam
-	op := "deletePost"
+	op := "PostController.deletePost"
 
 	if err := c.ShouldBindUri(&req); err != nil {
 		respondInvalidID(c, op, err)
@@ -201,10 +224,16 @@ func (controller *PostController) deletePost(c *gin.Context) {
 	}
 
 	ctx := c.Request.Context()
-	err := controller.postService.DeletePost(ctx, req.ID)
+	deleteErr := controller.postService.DeletePost(
+		DeletePostByIDParams{
+			postID: req.ID,
+			userID: userID,
+			ctx: ctx,
+		},
+	)
 
-	if err != nil {
-		respondServiceError(c, op, err)
+	if deleteErr != nil {
+		respondServiceError(c, op, deleteErr)
 		return
 	}
 

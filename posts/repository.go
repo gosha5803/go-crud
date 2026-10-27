@@ -87,58 +87,64 @@ func (r *PostRepository) GetPostById(ctx context.Context, postID uint) (models.P
 
 }
 
-func (r *PostRepository) DeletePostById(ctx context.Context, postID uint) error {
+func (r *PostRepository) DeletePostById(
+	params DeletePostByIDParams,
+) error {
 	op := "PostRepository.DeletePostById"
 	
 	result := r.DB.
-	WithContext(ctx).
-	Delete(&models.Post{}, "id = ?", postID) 
+	WithContext(params.ctx).
+	Where("id = ? AND author_id = ?", params.postID, params.userID).
+	Delete(&models.Post{}) 
 	
 	if result.Error != nil {
-		return fmt.Errorf("%s %d: %w", op, postID, result.Error)
+		return fmt.Errorf("%s %d: %w", op, params.postID, result.Error)
 	}
 	
 	if result.RowsAffected == 0 {
-		return fmt.Errorf("%s %d: %w", op, postID, ErrPostNotFound)
+		return fmt.Errorf("%s %d: %w", op, params.postID, ErrPostNotFound)
 	}
 
 	return nil
 }
 
-func (r *PostRepository) UpdatePost(ctx context.Context, postID uint, updatePostDto UpdatePostDto) (models.Post, error) {
+func (r *PostRepository) UpdatePost(
+	params UpdatePostParams,
+) (models.Post, error) {
 	op := "PostRepository.UpdatePost"
 	var post models.Post
 
 	if err := r.DB.
-	WithContext(ctx).
-	First(&post, "id = ?", postID).Error; err != nil {
+	WithContext(params.ctx).
+	Where("id = ? AND author_id = ?", params.postID, params.userID).
+	First(&post).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return models.Post{}, fmt.Errorf("%s %d: %w", op, postID, ErrPostNotFound)
+			return models.Post{}, fmt.Errorf("%s %d: %w", op, params.postID, ErrPostNotFound)
 		}
 
-		return models.Post{}, fmt.Errorf("%s: %d, %w", op, postID, err)
+		return models.Post{}, fmt.Errorf("%s: %d, %w", op, params.postID, err)
 	}
 
 	updates := map[string]any{}
 
-	if updatePostDto.Body != nil {updates["body"] = *updatePostDto.Body}
-	if updatePostDto.Title!= nil {updates["title"] = *updatePostDto.Title}
+	if params.postBody != nil {updates["body"] = *params.postBody}
+	if params.postTitle!= nil {updates["title"] = *params.postTitle}
 
 	if len(updates) == 0 {
 		return post, nil
 	}
 
 	result := r.DB.
-	WithContext(ctx).
+	WithContext(params.ctx).
 	Model(&post).
 	Updates(updates)
-
+	
 	if result.Error != nil {
-		return models.Post{}, fmt.Errorf("%s: %d, %w", op, postID, result.Error)
+		return models.Post{}, fmt.Errorf("%s: %d, %w", op, params.postID, result.Error)
 	}
 
 	if result.RowsAffected == 0 {
-		return models.Post{}, fmt.Errorf("%s %d: %w", op, postID, ErrPostNotFound)
+		return models.Post{}, fmt.Errorf("%s %d: %w", op, params.postID, ErrPostNotFound)
 	}
 
 	return post, nil
