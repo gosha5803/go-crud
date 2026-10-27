@@ -41,7 +41,7 @@ func AuthMiddleware(secret []byte, log *slog.Logger) gin.HandlerFunc {
 				slog.String("ip", ctx.ClientIP()),
 			)
 			// Просто ctx.JSON возвращал управление дальше
-			ctx.AbortWithStatusJSON(ErrUnauthorized.Status, ErrUnauthorized)
+			ctx.AbortWithStatusJSON(ErrUnauthorized.Status, gin.H{"error": ErrUnauthorized.Message})
 			return 
 		}
 		
@@ -54,6 +54,7 @@ func AuthMiddleware(secret []byte, log *slog.Logger) gin.HandlerFunc {
 				return secret, nil
 			}, 
 			jwt.WithValidMethods([]string{"HS256"}),
+			jwt.WithExpirationRequired(),
 		)
 			
 		if err != nil || !token.Valid {
@@ -62,7 +63,7 @@ func AuthMiddleware(secret []byte, log *slog.Logger) gin.HandlerFunc {
 				slog.String("ip", ctx.ClientIP()),
 				slog.Any("err", err), // "token expired", "signature invalid", ...
 			)
-			ctx.AbortWithStatusJSON(ErrUnauthorized.Status, ErrUnauthorized)
+			ctx.AbortWithStatusJSON(ErrUnauthorized.Status, gin.H{"error": ErrUnauthorized.Message})
 			return 
 		}
 
@@ -73,7 +74,7 @@ func AuthMiddleware(secret []byte, log *slog.Logger) gin.HandlerFunc {
 				slog.String("path", ctx.Request.URL.Path),
 				slog.String("ip", ctx.ClientIP()),
 			)
-			ctx.AbortWithStatusJSON(ErrUnauthorized.Status, ErrUnauthorized)
+			ctx.AbortWithStatusJSON(ErrUnauthorized.Status, gin.H{"error": ErrUnauthorized.Message})
 			return 
 		}
 
@@ -84,7 +85,7 @@ func AuthMiddleware(secret []byte, log *slog.Logger) gin.HandlerFunc {
 				slog.String("path", ctx.Request.URL.Path),
 				slog.String("ip", ctx.ClientIP()),
 			)
-			ctx.AbortWithStatusJSON(ErrUnauthorized.Status, ErrUnauthorized)
+			ctx.AbortWithStatusJSON(ErrUnauthorized.Status, gin.H{"error": ErrUnauthorized.Message})
 			return 
 		}
 

@@ -30,6 +30,7 @@ func (s *JwtService) NewToken(user user.User) (string, error) {
 		RegisteredClaims: jwt.RegisteredClaims{
 			ExpiresAt: jwt.NewNumericDate(now.Add(s.authConfig.JwtTokenTTL)),
 			Subject: fmt.Sprint(user.ID),
+			IssuedAt: jwt.NewNumericDate(now),
 		},
 	}
 
