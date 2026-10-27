@@ -35,6 +35,15 @@ func ConnectToDB(dbConfig *DBConfig) {
 	sqlDB.SetConnMaxLifetime(dbConfig.DBConnLifetime)
 }
 
+func ShutDownConnPool() error {
+	plainPool := GetPlainPool()
+	if err := plainPool.Close(); err != nil {
+		return fmt.Errorf("ShutDownConnPool: %w", err)
+	}
+
+	return  nil
+} 
+
 func GetPlainPool() *sql.DB {
 	sqlDB, sqlSwitchErr := DB.DB()
 

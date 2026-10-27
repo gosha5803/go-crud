@@ -51,7 +51,6 @@ func (s *MailService) SendVerificationMail(emailTo string, verificationToken str
 	m.SetHeader("From", s.SMTPConfig.SMTPUsername)
 	m.SetHeader("To", emailTo)
 	m.SetHeader("Subject", "Подтверждение регистрации")
-	m.SetBody("text/plain", fmt.Sprintf("Подтвердите email: %s", activateURL))
 	m.AddAlternative("text/html", htmlBody)
 
 	d := gomail.NewDialer(

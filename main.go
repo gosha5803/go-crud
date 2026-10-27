@@ -45,8 +45,8 @@ func NewLogger(env string) *slog.Logger {
 	return logger
 }
 
-func main() {
-	// TODO нужна какя-то папка с общими сущностями, там размещу тип конфига
+func run() error {
+// TODO нужна какя-то папка с общими сущностями, там размещу тип конфига
 	// Тут его инициализировать и прокинуть в конструктор каждого модуля
 	appCfg := initializers.MustLoadConfig()
 	initializers.ConnectToDB(&appCfg.DBConfig)
@@ -57,11 +57,11 @@ func main() {
 
 	// Нет, отмена этого контекста просто запускает закрытие очереди и сервера
 	appCtx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stop()
 
 	aiChatModule, err := aichat.NewAiChatModule(appCtx, r, appCfg.AiConfig)
 	if err != nil {
-		log.Printf("main: %v", err)
-		return
+		return  fmt.Errorf("init ai chat module: %w", err)
 	}
 
 	authModule := auth.NewAuthModule(
@@ -88,14 +88,21 @@ func main() {
 		Handler: r,
 	}
 
+	serverErrCn := make(chan error, 1)
 	go func() {
 		if err := srv.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
-			log.Printf("main listen %v", err)
-			stop()
+			serverErrCn <- err
 		}
 	}()
 
-	<-appCtx.Done()
+	var shtDwnErrors []error
+
+	select {
+		case <-appCtx.Done(): 
+		case serverErr := <- serverErrCn:
+			shtDwnErrors = append(shtDwnErrors, serverErr) 
+	}
+
 	stop()
 	// Это контекст, чтобы прям убить работу модуля
 	// создаётся не от App, а от Background()
@@ -107,24 +114,38 @@ func main() {
 	// Ждёт либо таймаута 10 - секунд либо, закрытия всех http запросов
 	if err := srv.Shutdown(shutDownCtx); err != nil {
 		log.Printf("main: server shutdown: %v", err)
-
+		shtDwnErrors = append(shtDwnErrors, err)
 		if errors.Is(err, context.DeadlineExceeded) {
 			log.Printf("main: not all connections finished in time, forcing close")
 		}
-
+		
 		// Shutdown по таймауту соединения не закрывает, их добивает Close
 		if closeErr := srv.Close(); closeErr != nil {
+			shtDwnErrors = append(shtDwnErrors, closeErr)
 			log.Printf("main: server close: %v", closeErr)
 		}
 	}
+	
+	mailQueueContext, cancelMqCtx := context.WithTimeout(context.Background(), time.Second*10)
+	defer cancelMqCtx()
 
-	if err := authModule.Close(shutDownCtx); err != nil {
-		log.Fatalf("main: %v", err)
+	if err := authModule.Close(mailQueueContext); err != nil {
+		shtDwnErrors = append(shtDwnErrors, err)
+	}
+	
+	if err := initializers.ShutDownConnPool(); err != nil {
+		shtDwnErrors = append(shtDwnErrors, err)
 	}
 
-	plainPool := initializers.GetPlainPool()
-	if err := plainPool.Close(); err != nil {
-		log.Fatalf("main: %v", err)
+	return errors.Join(shtDwnErrors...)
+}
+
+func main() {
+	err := run()
+
+	if err != nil {
+		log.Printf("app finished with error: %v", err)
+		os.Exit(1)
 	}
 }
 
