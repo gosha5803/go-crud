@@ -1,6 +1,7 @@
 package auth
 
 import (
+	"fmt"
 	"log/slog"
 	"strconv"
 	"strings"
@@ -8,6 +9,27 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt/v5"
 )
+
+func setUserIdToContext(ctx *gin.Context, userId uint) {
+	ctx.Set(userIdCtxKey, uint(userId))
+}
+
+func GetUserIdFromContext(ctx *gin.Context) (uint, error) {
+op := "PostController.extractUserIdFromContext"
+	value, idExtractErr := ctx.Get(userIdCtxKey)
+	
+	if !idExtractErr {
+		return 0, fmt.Errorf("%s, failed to extract userId from context", op)
+	}
+	
+	userId, ok := value.(uint)
+	
+	if !ok {
+		return 0, fmt.Errorf("%s, failed to conver userId to uint type", op)
+	}
+
+	return userId, nil
+}
 
 func AuthMiddleware(secret []byte, log *slog.Logger) gin.HandlerFunc {
 	return func(ctx *gin.Context) {
@@ -66,7 +88,7 @@ func AuthMiddleware(secret []byte, log *slog.Logger) gin.HandlerFunc {
 			return 
 		}
 
-		ctx.Set(UserIdKey, uint(userId))
+		setUserIdToContext(ctx, uint(userId))
 		ctx.Next()
 	}
 }

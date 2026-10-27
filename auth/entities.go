@@ -53,7 +53,7 @@ type UserActivatedDto struct {
 
 type UserIdCtxKey struct {}
 
-var UserIdKey = UserIdCtxKey{}
+var userIdCtxKey = UserIdCtxKey{}
 
 type HTTPErr struct {
 	Status  int

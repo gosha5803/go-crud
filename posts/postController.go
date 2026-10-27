@@ -3,7 +3,6 @@ package posts
 import (
 	"context"
 	"errors"
-	"fmt"
 	"log"
 	"net/http"
 
@@ -47,25 +46,6 @@ func NewPostController(
 		path: path,
 		authMW: authMW,
 	}
-}
-
-func (controller *PostController) extractUserIdFromContext(
-	c *gin.Context,
-	) (uint, error) {
-	op := "PostController.extractUserIdFromContext"
-	value, idExtractErr := c.Get(auth.UserIdKey)
-	
-	if !idExtractErr {
-		return 0, fmt.Errorf("%s, failed to extract userId from context", op)
-	}
-	
-	userId, ok := value.(uint)
-	
-	if !ok {
-		return 0, fmt.Errorf("%s, failed to conver userId to uint type", op)
-	}
-
-	return userId, nil
 }
 
 func (controller *PostController) AssignRoutes() {
@@ -144,7 +124,7 @@ func (controller *PostController) GetPostByID(c *gin.Context) {
 func (controller *PostController) createPost(c *gin.Context) {
 	var body CreatePostDto
 	op := "createPost"
-	userId, extractErr := controller.extractUserIdFromContext(c)
+	userId, extractErr := auth.GetUserIdFromContext(c)
 
 	if extractErr != nil {
 		respondServiceError(c, op, auth.ErrUnauthorized)
@@ -155,7 +135,9 @@ func (controller *PostController) createPost(c *gin.Context) {
 	// c.ShouldBindJSON - тут отлавливается связь с required gin
 	// Понять как он работает и все дела.
 	if err := c.ShouldBindJSON(&body); err != nil {
-		respondValidationError(c, op, err)
+		c.JSON(http.StatusUnauthorized, gin.H{
+			"error": "Unauthorized",
+		})
 		return
 	}
 
