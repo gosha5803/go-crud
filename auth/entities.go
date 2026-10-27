@@ -51,9 +51,9 @@ type UserActivatedDto struct {
 	Message string `json:"message"`
 }
 
-type UserIdCtxKey struct {}
+type ctxUserIdKey struct {}
 
-var userIdCtxKey = UserIdCtxKey{}
+var userIdCtxKey = ctxUserIdKey{}
 
 type HTTPErr struct {
 	Status  int

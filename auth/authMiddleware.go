@@ -11,11 +11,11 @@ import (
 )
 
 func setUserIdToContext(ctx *gin.Context, userId uint) {
-	ctx.Set(userIdCtxKey, uint(userId))
+	ctx.Set(userIdCtxKey, userId)
 }
 
 func GetUserIdFromContext(ctx *gin.Context) (uint, error) {
-op := "PostController.extractUserIdFromContext"
+	op := "GetUserIdFromContext"
 	value, idExtractErr := ctx.Get(userIdCtxKey)
 	
 	if !idExtractErr {
