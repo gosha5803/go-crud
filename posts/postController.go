@@ -17,8 +17,8 @@ type IPostService interface {
 	CreatePost(context.Context, string, string, uint) (models.Post, error)
 	GetPosts(context.Context) ([]models.Post, error)
 	GetPostById(context.Context,uint) (models.Post, error)
-	UpdatePost(UpdatePostParams) (models.Post, error)
-	DeletePost(DeletePostByIDParams) (error)
+	UpdatePost(context.Context, UpdatePostParams) (models.Post, error)
+	DeletePost(context.Context, DeletePostByIDParams) (error)
 	IncrementViews( context.Context,  uint)(models.Post, error)
 }
 
@@ -59,6 +59,19 @@ func (controller *PostController) AssignRoutes() {
 		prefix.DELETE("/:id", controller.deletePost)
 		prefix.POST("/:id/views", controller.incrementViews)
 	}
+}
+
+func requireUserID(ctx *gin.Context) (uint, bool) {
+	userId, extractErr := auth.GetUserIdFromContext(ctx)
+
+	if extractErr != nil {
+		ctx.JSON(http.StatusUnauthorized, gin.H{
+			"error": "Unauthorized",
+		})
+		return 0, false
+	}
+
+	return userId, true
 }
 
 func (controller *PostController) incrementViews(c *gin.Context) {
@@ -124,12 +137,9 @@ func (controller *PostController) GetPostByID(c *gin.Context) {
 func (controller *PostController) createPost(c *gin.Context) {
 	var body CreatePostDto
 	op := "createPost"
-	userId, extractErr := auth.GetUserIdFromContext(c)
+	userId, ok := requireUserID(c)
 
-	if extractErr != nil {
-		c.JSON(http.StatusUnauthorized, gin.H{
-			"error": "Unauthorized",
-		})
+	if !ok {
 		return
 	}
 
@@ -160,12 +170,9 @@ func (controller *PostController) createPost(c *gin.Context) {
 }
 
 func (controller *PostController) updatePost(c *gin.Context) {
-	userID, err := auth.GetUserIdFromContext(c)
+	userID, ok := requireUserID(c)
 
-	if err != nil {
-		c.JSON(http.StatusUnauthorized, gin.H{
-			"error": "Unauthorized",
-		})
+	if !ok {
 		return
 	}
 
@@ -187,13 +194,15 @@ func (controller *PostController) updatePost(c *gin.Context) {
 	}
 	
 	ctx := c.Request.Context()
-	post, err := controller.postService.UpdatePost(UpdatePostParams{
-		ctx: ctx,
-		postBody: body.Body,
-		postTitle: body.Title,
-		postID: req.ID,
-		userID: userID,
-	})
+	post, err := controller.postService.UpdatePost(
+		ctx, 
+		UpdatePostParams{
+			postBody: body.Body,
+			postTitle: body.Title,
+			postID: req.ID,
+			userID: userID,
+		},
+	)
 
 	if err != nil {
 		respondServiceError(c, op, err)
@@ -206,12 +215,9 @@ func (controller *PostController) updatePost(c *gin.Context) {
 }
 
 func (controller *PostController) deletePost(c *gin.Context) {
-	userID, err := auth.GetUserIdFromContext(c)
+	userID, ok := requireUserID(c)
 
-	if err != nil {
-		c.JSON(http.StatusUnauthorized, gin.H{
-			"error": "Unauthorized",
-		})
+	if !ok {
 		return
 	}
 	// Get id from URL
@@ -225,10 +231,10 @@ func (controller *PostController) deletePost(c *gin.Context) {
 
 	ctx := c.Request.Context()
 	deleteErr := controller.postService.DeletePost(
+		ctx,
 		DeletePostByIDParams{
 			postID: req.ID,
 			userID: userID,
-			ctx: ctx,
 		},
 	)
 

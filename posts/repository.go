@@ -88,12 +88,13 @@ func (r *PostRepository) GetPostById(ctx context.Context, postID uint) (models.P
 }
 
 func (r *PostRepository) DeletePostById(
+	ctx context.Context,
 	params DeletePostByIDParams,
 ) error {
 	op := "PostRepository.DeletePostById"
 	
 	result := r.DB.
-	WithContext(params.ctx).
+	WithContext(ctx).
 	Where("id = ? AND author_id = ?", params.postID, params.userID).
 	Delete(&models.Post{}) 
 	
@@ -109,13 +110,14 @@ func (r *PostRepository) DeletePostById(
 }
 
 func (r *PostRepository) UpdatePost(
+	ctx context.Context,
 	params UpdatePostParams,
 ) (models.Post, error) {
 	op := "PostRepository.UpdatePost"
 	var post models.Post
 
 	if err := r.DB.
-	WithContext(params.ctx).
+	WithContext(ctx).
 	Where("id = ? AND author_id = ?", params.postID, params.userID).
 	First(&post).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -135,7 +137,7 @@ func (r *PostRepository) UpdatePost(
 	}
 
 	result := r.DB.
-	WithContext(params.ctx).
+	WithContext(ctx).
 	Model(&post).
 	Updates(updates)
 	

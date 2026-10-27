@@ -11,8 +11,8 @@ type IPostRepository interface {
 	CreatePost(context.Context, string, string, uint) (models.Post, error)
 	GetPostById(context.Context,uint) (models.Post, error)
 	GetPosts(context.Context) ( []models.Post, error)
-	UpdatePost(UpdatePostParams) (models.Post, error)
-	DeletePostById(DeletePostByIDParams) error
+	UpdatePost(context.Context, UpdatePostParams) (models.Post, error)
+	DeletePostById(context.Context, DeletePostByIDParams) error
 	IncrementViews( context.Context,  uint)(models.Post, error)
 }
 
@@ -88,6 +88,7 @@ func (service *PostService) GetPostById(ctx context.Context, id uint) (models.Po
 // TODO если у нас есть возможность делать, например тело поста - пустой строкой, то тут надо чётко различать, когда пользователь не трогает тело
 // и не хочет его редактировать и когда он пустую строку отправил
 func (service *PostService) UpdatePost(
+	ctx context.Context,
 	params UpdatePostParams,
 ) (models.Post, error) {
 	op := "PostService.UpdatePost"
@@ -99,10 +100,13 @@ func (service *PostService) UpdatePost(
 
 	log.Info("Trying to update a post")
 
-	return service.repo.UpdatePost(params)
+	return service.repo.UpdatePost(ctx, params)
 }
 
-func (service *PostService) DeletePost(params DeletePostByIDParams) (error) {
+func (service *PostService) DeletePost(
+	ctx context.Context,
+	params DeletePostByIDParams,
+	) (error) {
 	op := "PostService.DeletePost"
 	log := service.log.With(
 		slog.String("op", op),
@@ -112,5 +116,5 @@ func (service *PostService) DeletePost(params DeletePostByIDParams) (error) {
 
 	log.Info("Trying to delete the post")
 
-	return service.repo.DeletePostById(params)
+	return service.repo.DeletePostById(ctx, params)
 }

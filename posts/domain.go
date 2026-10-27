@@ -1,7 +1,6 @@
 package posts
 
 import (
-	"context"
 	"errors"
 )
 
@@ -11,14 +10,12 @@ type CreatePostDto struct {
 }
 
 type UpdatePostParams struct {
-	ctx context.Context
 	postBody, postTitle *string
 	postID, userID uint
 }
 
 type DeletePostByIDParams struct {
 	postID, userID uint
-	ctx context.Context
 }
 
 type UpdatePostDto struct {
