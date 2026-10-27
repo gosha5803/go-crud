@@ -85,11 +85,6 @@ func (s *AuthService) Login(
 		
 		return "", fmt.Errorf("%s, %w", op, err)
 	}
-	
-	if !existingUser.EmailVerified {
-		log.Error("Failed to login user who is not verified", sl.Err(ErrUserIsNotActivated))
-		return "", fmt.Errorf("%s, %w", op, ErrUserIsNotActivated)
-	}
 
 	// TODO брутфорс
 	if err := s.comparePassword([]byte(existingUser.Password), []byte(password)); err != nil {
@@ -101,6 +96,13 @@ func (s *AuthService) Login(
 		log.Error("Password check failed", sl.Err(err))
 		return "", fmt.Errorf("%s, %w", op, err)
 	}
+	// Проверяем подтверждён ли email только после проверки пароля, так как если пароль неверный, а email существует просто не подтверждён, 
+	// возможна утечка email
+	if !existingUser.EmailVerified {
+		log.Error("Failed to login user who is not verified", sl.Err(ErrUserIsNotActivated))
+		return "", fmt.Errorf("%s, %w", op, ErrUserIsNotActivated)
+	}
+
 	
 	jwtToken, err := s.jwtService.NewToken(existingUser)
 	
