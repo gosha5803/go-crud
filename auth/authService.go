@@ -158,10 +158,10 @@ func (s *AuthService) ActivateUser(
 	tokenHash := s.hashVerificationToken(verificationToken)
 	now := time.Now()
 
-	tokenUpdateErr := s.DB.Transaction(func(tx *gorm.DB) error {
+	tokenUpdateErr := s.DB.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		var token VerificationToken
 
-		res := tx.WithContext(ctx).
+		res := tx.
 			Model(&token).
 			Clauses(clause.Returning{}).
 			Where("hash = ? AND used_at IS NULL AND expires_at > ?", tokenHash, now).
